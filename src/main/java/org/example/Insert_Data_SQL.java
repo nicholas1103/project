@@ -33,144 +33,90 @@ public class Insert_Data_SQL {
         return nextId;
     }
 
+    public boolean addUserProjectWorkAttachmentResultResponse(
+            String username, String password, String fullname,
+            String projectName, String requirement, String projectDeadline,
+            String role, String workDescription, String workDeadline, String workStatus,
+            String fileName, String resultDescription, String resultTimestamp,
+            String sender, String responseContent, String responseTimestamp
+    ) {
+        String projectCode = generateProjectCode("Project");
+        String workCode = generateProjectCode("Work");
+        String attachmentCode = generateProjectCode("Attachment");
+        String resultCode = generateProjectCode("Result");
+        String responseCode = generateProjectCode("Response");
+        boolean isInserted = false;
 
-    private static String generateCode(String start) {
-        return start + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-    }
-    public void insertData() {
-        try {
-            insertUser("user1", "password1", "Nguyen Tan Phong");
-            insertUser("user2", "password2", "Nguyen Hoang Phuc");
-            insertUser("user3", "password3", "Vo Hoang Nam");
-            insertUser("user4", "password4", "Nguyen Tan Kiet");
-            insertUser("user5", "password5", "Bach Minh Phuc");
+        String insertUserSQL = "INSERT INTO User (username, password, fullname) VALUES (?, ?, ?)";
+        String insertProjectSQL = "INSERT INTO Project (project_code, project_name, requirement, deadline) VALUES (?, ?, ?, ?)";
+        String insertWorkSQL = "INSERT INTO Work (work_code, project_code, username, role, work, deadline, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String insertAttachmentSQL = "INSERT INTO Attachment (attachment_code, project_code, file_name) VALUES (?, ?, ?)";
+        String insertResultSQL = "INSERT INTO Result (result_code, work_code, result, time_stamp) VALUES (?, ?, ?, ?)";
+        String insertResponseSQL = "INSERT INTO Response (response_code, work_code, sender, content, time_stamp) VALUES (?, ?, ?, ?, ?)";
 
-            insertProject("Coffee Project", "Requirement 1", "2024-12-31");
-            insertProject("Compiler Project", "Requirement 2", "2025-03-31");
-            insertProject("Buffer Project", "Requirement 3", "2025-12-04");
+        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
+             PreparedStatement userStmt = connection.prepareStatement(insertUserSQL);
+             PreparedStatement projectStmt = connection.prepareStatement(insertProjectSQL);
+             PreparedStatement workStmt = connection.prepareStatement(insertWorkSQL);
+             PreparedStatement attachmentStmt = connection.prepareStatement(insertAttachmentSQL);
+             PreparedStatement resultStmt = connection.prepareStatement(insertResultSQL);
+             PreparedStatement responseStmt = connection.prepareStatement(insertResponseSQL)) {
 
-            insertWork("proj2", "user1", "Developer", "Write API", "2024-10-15", "unfinished");
-            insertWork("proj2", "user2", "Developer", "Query Data", "2024-11-20", "unfinished");
-            insertWork("proj2", "user3", "Project Manager", "Control Project", "2025-03-31", "unfinished");
-            insertWork("proj2", "user4", "Developer", "Design UI", "2024-09-15", "finished");
-            insertWork("proj2", "user5", "Developer", "Security", "2025-10-15", "unfinished");
+            userStmt.setString(1, username);
+            userStmt.setString(2, password);
+            userStmt.setString(3, fullname);
+            userStmt.executeUpdate();
 
-            insertResult("work1", "Feature X developed", "2024-10-16 16:10:00");
-            insertResult("work2", "Testing not started", "2024-11-01 09:20:00");
-            insertResult("work3", "Feature X developed", "2024-10-11 11:30:00");
-            insertResult("work4", "Testing not started", "2024-11-02 22:40:00");
-            insertResult("work5", "Feature X developed", "2024-10-03 05:45:00");
+            projectStmt.setString(1, projectCode);
+            projectStmt.setString(2, projectName);
+            projectStmt.setString(3, requirement);
+            projectStmt.setString(4, projectDeadline);
+            projectStmt.executeUpdate();
 
-            insertResponse("work1", "user1", "Work completed", "2024-10-16 11:00:00");
-            insertResponse("work2", "user2", "Please update status", "2024-11-01 09:30:00");
-            insertResponse("work3", "user3", "Work completed", "2024-10-16 11:00:00");
-            insertResponse("work4", "user4", "Please update status", "2024-11-01 09:30:00");
-            insertResponse("work5", "user5", "Work completed", "2024-10-16 11:00:00");
-        } catch (Exception e){
-//            logException.logException(e);
-        }
-    }
-    private static void insertUser(String username, String password, String fullname){
-        try {
-            System.out.println("- Inserting User: ");
-            Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
-            String sql = "INSERT INTO User (username, password, fullname) VALUES (?, ?, ?)";
-            PreparedStatement stmt = connection.prepareStatement(sql);
-            stmt.setString(1, username);
-            stmt.setString(2, password);
-            stmt.setString(3, fullname);
-            stmt.executeUpdate();
-            connection.close();
-        } catch (Exception e){
-//            logException.logException(e);
-        }
-    }
+            workStmt.setString(1, workCode);
+            workStmt.setString(2, projectCode);
+            workStmt.setString(3, username);
+            workStmt.setString(4, role);
+            workStmt.setString(5, workDescription);
+            workStmt.setString(6, workDeadline);
+            workStmt.setString(7, workStatus);
+            workStmt.executeUpdate();
 
-    private void insertProject(String projectName, String requirement, String deadline) {
-        Connection connection = null;
-        PreparedStatement stmt = null;
+            attachmentStmt.setString(1, attachmentCode);
+            attachmentStmt.setString(2, projectCode);
+            attachmentStmt.setString(3, fileName);
+            attachmentStmt.executeUpdate();
 
-        try {
-            String projectCode = generateCode("PROJ-"); // Tạo mã dự án mới
+            resultStmt.setString(1, resultCode);
+            resultStmt.setString(2, workCode);
+            resultStmt.setString(3, resultDescription);
+            resultStmt.setString(4, resultTimestamp);
+            resultStmt.executeUpdate();
 
-            System.out.println("- Inserting Project: ");
-            connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
+            responseStmt.setString(1, responseCode);
+            responseStmt.setString(2, workCode);
+            responseStmt.setString(3, sender);
+            responseStmt.setString(4, responseContent);
+            responseStmt.setString(5, responseTimestamp);
+            responseStmt.executeUpdate();
 
-            String sql = "INSERT INTO Project (project_code, project_name, requirement, deadline) VALUES (?, ?, ?, ?)";
-            stmt = connection.prepareStatement(sql);
-            stmt.setString(1, projectCode);
-            stmt.setString(2, projectName);
-            stmt.setString(3, requirement);
-            stmt.setString(4, deadline);
-            stmt.executeUpdate();
+            connection.commit();
+            isInserted = true;
 
-            System.out.println("Project inserted with code: " + projectCode);
         } catch (SQLException e) {
-            e.printStackTrace(); // Thay vì logException, in lỗi ra console
-        } finally {
-            // Đóng tài nguyên
-            try {
-                if (stmt != null) stmt.close();
-                if (connection != null) connection.close();
-            } catch (SQLException ex) {
-                ex.printStackTrace();
-            }
+            System.out.println("An error occurred: " + e.getMessage());
         }
+
+        return isInserted;
     }
 
-    private static void insertWork(String projectCode, String username, String role, String work, String deadline, String status) {
-        try {
-            System.out.println("- Inserting Work: ");
-            Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
-            String sql = "INSERT INTO Work (work_code, project_code, username, role, work, deadline, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
-            PreparedStatement stmt = connection.prepareStatement(sql);
-            stmt.setString(1, generateCode("WORK-"));
-            stmt.setString(2, projectCode);
-            stmt.setString(3, username);
-            stmt.setString(4, role);
-            stmt.setString(5, work);
-            stmt.setString(6, deadline);
-            stmt.setString(7, status);
-            stmt.executeUpdate();
-            connection.close();
-        } catch (Exception e){
-//            logException.logException(e);
-        }
-    }
 
-    private static void insertResult(String workCode, String result, String timeStamp) {
-
-        try {
-            System.out.println("- Inserting Result: ");
-            Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
-            String sql = "INSERT INTO Result (result_code, work_code, result, time_stamp) VALUES (?, ?, ?, ?)";
-            PreparedStatement stmt = connection.prepareStatement(sql);
-            stmt.setString(1, generateCode("RESULT-"));
-            stmt.setString(2, workCode);
-            stmt.setString(3, result);
-            stmt.setString(4, timeStamp);
-            stmt.executeUpdate();
-            connection.close();
-        } catch (Exception e){
-//            logException.logException(e);
-        }
-    }
-
-    private static void insertResponse(String workCode, String sender, String content, String timeStamp) {
-        try {
-            System.out.println("- Inserting Response: ");
-            Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
-            String sql = "INSERT INTO Response (response_code, work_code, sender, content, time_stamp) VALUES (?, ?, ?, ?, ?)";
-            PreparedStatement stmt = connection.prepareStatement(sql);
-            stmt.setString(1, generateCode("RESPOND-"));
-            stmt.setString(2, workCode);
-            stmt.setString(3, sender);
-            stmt.setString(4, content);
-            stmt.setString(5, timeStamp);
-            stmt.executeUpdate();
-            connection.close();
-        } catch (Exception e){
-//            logException.logException(e);
-        }
-    }
 }
+
+
+
+
+
+
+
+
