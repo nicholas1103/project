@@ -1,6 +1,7 @@
 package org.example;
 
 import com.google.gson.*;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -73,7 +74,7 @@ public class Controller {
     }
 
     @GetMapping("/getInformationProject")
-    public String getProjectDetailsByUsername(@RequestParam("userName") String username) {
+    public ResponseEntity<String> getProjectDetailsByUsername(@RequestParam("userName") String username) {
         JsonArray projectsArray = new JsonArray();
         Gson gson = new Gson();
         String httpStatusCode = "200";
@@ -102,23 +103,16 @@ public class Controller {
                 projectsArray.add(project);
             }
 
-            if (!dataFound) {
-                httpStatusCode = "404";
-                JsonObject errorResponse = new JsonObject();
-                errorResponse.addProperty("error", "No projects found for the given username");
-                return gson.toJson(errorResponse) + " HTTP Status Code: " + httpStatusCode;
-            }
+            if (!dataFound)
+                return ResponseEntity.status(404).body("No projects found for the given username");
+
 
         } catch (Exception e) {
-            httpStatusCode = "500";
-            JsonObject errorResponse = new JsonObject();
-            errorResponse.addProperty("error", "An error occurred: " + e.getMessage());
-            return gson.toJson(errorResponse) + " HTTP Status Code: " + httpStatusCode;
+            return ResponseEntity.status(500).body("An error occurred: " + e.getMessage());
         }
-
         JsonObject responseJson = new JsonObject();
         responseJson.add("projects", projectsArray);
-        return gson.toJson(responseJson) + " HTTP Status Code: " + httpStatusCode;
+        return ResponseEntity.ok(responseJson.toString());
     }
     private void saveFileContent(String fileName, String content) throws IOException {
         Path filePath = Paths.get("/path/to/save/files/" + fileName);
