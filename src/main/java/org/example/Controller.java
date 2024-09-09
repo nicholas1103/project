@@ -74,6 +74,7 @@ public class Controller {
     }
 
     @GetMapping("/getInformationProject")
+
     public ResponseEntity<String> getProjectDetailsByUsername(@RequestParam("userName") String username) {
         JsonArray projectsArray = new JsonArray();
         Gson gson = new Gson();
