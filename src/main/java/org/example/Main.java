@@ -101,9 +101,9 @@ public class Main extends SpringBootServletInitializer {
 
         System.out.println(jsonRequest);
 
-        String result = controller.addProject(jsonRequest, files, "phucbm");
+//        String result = controller.addProject(jsonRequest, files, "phucbm");
 
-        System.out.println(result);
+//        System.out.println(result);
     }
 
 
