@@ -149,30 +149,30 @@ public class Controller {
              PreparedStatement workStmt = connection.prepareStatement(insertWorkSQL);
              PreparedStatement attachmentStmt = connection.prepareStatement(insertAttachmentSQL);
              PreparedStatement attachmentMemberStmt = connection.prepareStatement(insertAttachmentMemberSQL)) {
-
+            
             projectStmt.setString(1, projectCode);
             projectStmt.setString(2, projectName);
             projectStmt.setString(3, requirement);
             projectStmt.setString(4, deadline);
             projectStmt.executeUpdate();
-
+            
             String managerWorkCode = generateProjectCode("Work");
             workStmt.setString(1, managerWorkCode);
             workStmt.setString(2, projectCode);
-            workStmt.setString(3, creatorUsername); // Người tạo project
-            workStmt.setString(4, "Manager"); // Vai trò là Manager
+            workStmt.setString(3, creatorUsername);
+            workStmt.setString(4, "Manager");
             workStmt.setString(5, "Quản lý dự án");
             workStmt.setString(6, deadline);
             workStmt.setString(7, "unfinished");
             workStmt.executeUpdate();
-
+            
             for (JsonElement projectAttachment : projectAttachments) {
                 String fileName = projectAttachment.getAsString();
                 MultipartFile file = findFileByName(files, fileName);
                 if (file != null) {
                     String fileContent = new String(file.getBytes(), StandardCharsets.UTF_8);
-                    saveFileContent("D:\\Documents\\IdeaProjects\\project\\Attachment\\", fileName, fileContent);
-
+                    saveFileContent("C:/Users/Tan Phong/IdeaProjects/PROJECT_PROJECT/Attachment_Project/", fileName, fileContent);
+                    
                     String attachmentCode = generateProjectCode("Attachment");
                     attachmentStmt.setString(1, attachmentCode);
                     attachmentStmt.setString(2, projectCode);
@@ -180,7 +180,7 @@ public class Controller {
                     attachmentStmt.executeUpdate();
                 }
             }
-
+            
             for (JsonElement memberElement : members) {
                 JsonObject member = memberElement.getAsJsonObject();
                 String username = member.get("name").getAsString();
@@ -199,12 +199,18 @@ public class Controller {
                 workStmt.executeUpdate();
 
                 JsonArray memberAttachments = member.getAsJsonArray("MemberAttachments");
+                File memberFolder = new File("C:/Users/Tan Phong/IdeaProjects/PROJECT_PROJECT/Attachment_Member/" + username + "/");
+                if (!memberFolder.exists()) {
+                    memberFolder.mkdirs();
+                }
+
                 for (JsonElement memberAttachment : memberAttachments) {
                     String fileName = memberAttachment.getAsString();
                     MultipartFile file = findFileByName(files, fileName);
                     if (file != null) {
                         String fileContent = new String(file.getBytes(), StandardCharsets.UTF_8);
-                        saveFileContent("D:\\Documents\\IdeaProjects\\project\\Attachment\\member\\", fileName, fileContent);
+                        
+                        saveFileContent(memberFolder.getPath() + "/", fileName, fileContent);
 
                         String attachmentMemberCode = generateProjectCode("Attachment_Members");
                         attachmentMemberStmt.setString(1, attachmentMemberCode);
@@ -223,6 +229,14 @@ public class Controller {
         }
     }
 
+    private void saveFileContent(String folder, String fileName, String content) throws IOException {
+        File file = new File(folder + fileName);
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            byte[] contentBytes = content.getBytes(StandardCharsets.UTF_8);
+            fos.write(contentBytes);
+        }
+    }
+
     private MultipartFile findFileByName(List<MultipartFile> files, String fileName) {
         for (MultipartFile file : files) {
             if (file.getOriginalFilename().equals(fileName)) {
@@ -230,14 +244,6 @@ public class Controller {
             }
         }
         return null;
-    }
-
-    private void saveFileContent(String folder, String fileName, String content) throws IOException {
-        File file = new File(folder + fileName);
-        try (FileOutputStream fos = new FileOutputStream(file)) {
-            byte[] contentBytes = content.getBytes(StandardCharsets.UTF_8);
-            fos.write(contentBytes);
-        }
     }
 
     public MultipartFile createMockMultipartFile(String fileName, String content) {
