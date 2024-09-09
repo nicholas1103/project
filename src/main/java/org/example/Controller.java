@@ -171,7 +171,7 @@ public class Controller {
                 MultipartFile file = findFileByName(files, fileName);
                 if (file != null) {
                     String fileContent = new String(file.getBytes(), StandardCharsets.UTF_8);
-                    saveFileContent("C:/Users/Tan Phong/IdeaProjects/PROJECT_PROJECT/Attachment_Project/", fileName, fileContent);
+                    saveFileContent("D:\\Documents\\IdeaProjects\\project\\Attachment\\", fileName, fileContent);
 
                     String attachmentCode = generateProjectCode("Attachment");
                     attachmentStmt.setString(1, attachmentCode);
@@ -204,7 +204,7 @@ public class Controller {
                     MultipartFile file = findFileByName(files, fileName);
                     if (file != null) {
                         String fileContent = new String(file.getBytes(), StandardCharsets.UTF_8);
-                        saveFileContent("C:/Users/Tan Phong/IdeaProjects/PROJECT_PROJECT/Attachment_Member/", fileName, fileContent);
+                        saveFileContent("D:\\Documents\\IdeaProjects\\project\\Attachment\\member\\", fileName, fileContent);
 
                         String attachmentMemberCode = generateProjectCode("Attachment_Members");
                         attachmentMemberStmt.setString(1, attachmentMemberCode);
