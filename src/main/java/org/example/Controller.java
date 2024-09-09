@@ -74,7 +74,6 @@ public class Controller {
     }
 
     @GetMapping("/getInformationProject")
-
     public ResponseEntity<String> getProjectDetailsByUsername(@RequestParam("userName") String username) {
         JsonArray projectsArray = new JsonArray();
         Gson gson = new Gson();
@@ -115,95 +114,131 @@ public class Controller {
         responseJson.add("projects", projectsArray);
         return ResponseEntity.ok(responseJson.toString());
     }
-    private void saveFileContent(String fileName, String content) throws IOException {
-        Path filePath = Paths.get("/path/to/save/files/" + fileName);
-        Files.write(filePath, content.getBytes());
-    }
+
 
     @PostMapping("/addProject")
-    public String addProject(@RequestBody String jsonRequest) {
-        String httpStatusCode = "400";
-        JsonObject jsonResponse = new JsonObject();
+    public String addProject(
+            @RequestParam("projectData") String jsonRequest,
+            @RequestParam("files") List<MultipartFile> files,
+            @RequestParam("creator") String creatorUsername) {
 
         Gson gson = new Gson();
-
         JsonObject projectData = gson.fromJson(jsonRequest, JsonObject.class);
-        String managerUsername = projectData.get("manager_username").getAsString();
+
         String projectName = projectData.get("project_name").getAsString();
         String requirement = projectData.get("requirement").getAsString();
         String deadline = projectData.get("deadline").getAsString();
+        JsonArray projectAttachments = projectData.getAsJsonArray("ProjectAttachments");
         JsonArray members = projectData.getAsJsonArray("members");
-        JsonObject attachments = projectData.getAsJsonObject("attachments");
 
         String projectCode = generateProjectCode("Project");
 
         String insertProjectSQL = "INSERT INTO Project (project_code, project_name, requirement, deadline) VALUES (?, ?, ?, ?)";
         String insertWorkSQL = "INSERT INTO Work (work_code, project_code, username, role, work, deadline, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
         String insertAttachmentSQL = "INSERT INTO Attachment (attachment_code, project_code, file_name) VALUES (?, ?, ?)";
+        String insertAttachmentMemberSQL = "INSERT INTO Attachment_Members (attachmentMembers_Code, username, file_name) VALUES (?, ?, ?)";
 
         try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
              PreparedStatement projectStmt = connection.prepareStatement(insertProjectSQL);
              PreparedStatement workStmt = connection.prepareStatement(insertWorkSQL);
-             PreparedStatement attachmentStmt = connection.prepareStatement(insertAttachmentSQL)) {
-            
+             PreparedStatement attachmentStmt = connection.prepareStatement(insertAttachmentSQL);
+             PreparedStatement attachmentMemberStmt = connection.prepareStatement(insertAttachmentMemberSQL)) {
+
             projectStmt.setString(1, projectCode);
             projectStmt.setString(2, projectName);
             projectStmt.setString(3, requirement);
             projectStmt.setString(4, deadline);
-            int rowsAffected = projectStmt.executeUpdate();
+            projectStmt.executeUpdate();
 
-            if (rowsAffected > 0) {
-                workStmt.setString(1, generateProjectCode("Work"));
-                workStmt.setString(2, projectCode);
-                workStmt.setString(3, managerUsername);
-                workStmt.setString(4, "Manager");
-                workStmt.setString(5, "Manage Project");
-                workStmt.setString(6, deadline);
-                workStmt.setString(7, "unfinished");
-                workStmt.executeUpdate();
+            String managerWorkCode = generateProjectCode("Work");
+            workStmt.setString(1, managerWorkCode);
+            workStmt.setString(2, projectCode);
+            workStmt.setString(3, creatorUsername); // Người tạo project
+            workStmt.setString(4, "Manager"); // Vai trò là Manager
+            workStmt.setString(5, "Quản lý dự án");
+            workStmt.setString(6, deadline);
+            workStmt.setString(7, "unfinished");
+            workStmt.executeUpdate();
 
-                for (JsonElement memberElement : members) {
-                    JsonObject member = memberElement.getAsJsonObject();
-                    String memberName = member.get("name").getAsString();
-                    String memberRole = member.get("role").getAsString();
-                    String memberWork = member.get("work").getAsString();
-                    String memberDeadline = member.get("deadline").getAsString();
+            for (JsonElement projectAttachment : projectAttachments) {
+                String fileName = projectAttachment.getAsString();
+                MultipartFile file = findFileByName(files, fileName);
+                if (file != null) {
+                    String fileContent = new String(file.getBytes(), StandardCharsets.UTF_8);
+                    saveFileContent("C:/Users/Tan Phong/IdeaProjects/PROJECT_PROJECT/Attachment_Project/", fileName, fileContent);
 
-                    workStmt.setString(1, generateProjectCode("Work"));
-                    workStmt.setString(2, projectCode);
-                    workStmt.setString(3, memberName);
-                    workStmt.setString(4, memberRole);
-                    workStmt.setString(5, memberWork);
-                    workStmt.setString(6, memberDeadline);
-                    workStmt.setString(7, "unfinished");
-                    workStmt.executeUpdate();
-                }
-
-                for (String fileName : attachments.keySet()) {
-                    String fileContent = attachments.get(fileName).getAsString();
                     String attachmentCode = generateProjectCode("Attachment");
-
-                    saveFileContent(fileName, fileContent);
-
                     attachmentStmt.setString(1, attachmentCode);
                     attachmentStmt.setString(2, projectCode);
                     attachmentStmt.setString(3, fileName);
                     attachmentStmt.executeUpdate();
                 }
-
-                httpStatusCode = "200";
             }
 
-        } catch (SQLException e) {
-            jsonResponse.addProperty("status", "error");
-            jsonResponse.addProperty("error", "An error occurred: " + e.getMessage());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+            for (JsonElement memberElement : members) {
+                JsonObject member = memberElement.getAsJsonObject();
+                String username = member.get("name").getAsString();
+                String role = member.get("role").getAsString();
+                String work = member.get("work").getAsString();
+                String memberDeadline = member.get("deadline").getAsString();
 
-        return "HTTP Status Code: " + httpStatusCode;
+                String workCode = generateProjectCode("Work");
+                workStmt.setString(1, workCode);
+                workStmt.setString(2, projectCode);
+                workStmt.setString(3, username);
+                workStmt.setString(4, role);
+                workStmt.setString(5, work);
+                workStmt.setString(6, memberDeadline);
+                workStmt.setString(7, "unfinished");
+                workStmt.executeUpdate();
+
+                JsonArray memberAttachments = member.getAsJsonArray("MemberAttachments");
+                for (JsonElement memberAttachment : memberAttachments) {
+                    String fileName = memberAttachment.getAsString();
+                    MultipartFile file = findFileByName(files, fileName);
+                    if (file != null) {
+                        String fileContent = new String(file.getBytes(), StandardCharsets.UTF_8);
+                        saveFileContent("C:/Users/Tan Phong/IdeaProjects/PROJECT_PROJECT/Attachment_Member/", fileName, fileContent);
+
+                        String attachmentMemberCode = generateProjectCode("Attachment_Members");
+                        attachmentMemberStmt.setString(1, attachmentMemberCode);
+                        attachmentMemberStmt.setString(2, username);
+                        attachmentMemberStmt.setString(3, fileName);
+                        attachmentMemberStmt.executeUpdate();
+                    }
+                }
+            }
+
+            return "Project added successfully";
+
+        } catch (SQLException | IOException e) {
+            e.printStackTrace();
+            return "Error: " + e.getMessage();
+        }
     }
 
+    private MultipartFile findFileByName(List<MultipartFile> files, String fileName) {
+        for (MultipartFile file : files) {
+            if (file.getOriginalFilename().equals(fileName)) {
+                return file;
+            }
+        }
+        return null;
+    }
+
+    private void saveFileContent(String folder, String fileName, String content) throws IOException {
+        File file = new File(folder + fileName);
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            byte[] contentBytes = content.getBytes(StandardCharsets.UTF_8);
+            fos.write(contentBytes);
+        }
+    }
+
+    public MultipartFile createMockMultipartFile(String fileName, String content) {
+        return new MockMultipartFile(fileName, fileName, "text/plain", content.getBytes(StandardCharsets.UTF_8));
+    }
+
+    
     @GetMapping("/checkManager")
     public boolean checkManager(@RequestParam("projectCode") String projectCode, @RequestParam("userName") String username) {
         boolean isManager = false;
