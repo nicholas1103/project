@@ -171,7 +171,7 @@ public class Controller {
                 MultipartFile file = findFileByName(files, fileName);
                 if (file != null) {
                     String fileContent = new String(file.getBytes(), StandardCharsets.UTF_8);
-                    saveFileContent("C:/Users/Tan Phong/IdeaProjects/PROJECT_PROJECT/Attachment_Project/", fileName, fileContent);
+                    saveFileContent("D:\\Documents\\IdeaProjects\\project\\Attachment\\project\\", fileName, fileContent);
                     
                     String attachmentCode = generateProjectCode("Attachment");
                     attachmentStmt.setString(1, attachmentCode);
@@ -199,7 +199,7 @@ public class Controller {
                 workStmt.executeUpdate();
 
                 JsonArray memberAttachments = member.getAsJsonArray("MemberAttachments");
-                File memberFolder = new File("C:/Users/Tan Phong/IdeaProjects/PROJECT_PROJECT/Attachment_Member/" + username + "/");
+                File memberFolder = new File("D:\\Documents\\IdeaProjects\\project\\Attachment\\member\\" + username + "\\");
                 if (!memberFolder.exists()) {
                     memberFolder.mkdirs();
                 }
@@ -210,7 +210,7 @@ public class Controller {
                     if (file != null) {
                         String fileContent = new String(file.getBytes(), StandardCharsets.UTF_8);
                         
-                        saveFileContent(memberFolder.getPath() + "/", fileName, fileContent);
+                        saveFileContent(memberFolder.getPath() + "\\", fileName, fileContent);
 
                         String attachmentMemberCode = generateProjectCode("Attachment_Members");
                         attachmentMemberStmt.setString(1, attachmentMemberCode);
