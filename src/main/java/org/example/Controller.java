@@ -299,5 +299,91 @@ public class Controller {
         return isUpdated;
     }
 
+    public String getProjectDetails(String projectCode, String username) {
+        JsonObject result = new JsonObject();
+        Gson gson = new Gson();
+
+        String projectName = "";
+        String requirement = "";
+        String deadline = "";
+        boolean isManager = false;
+        JsonArray attachmentsArray = new JsonArray();
+        JsonArray membersArray = new JsonArray();
+
+        String projectAttachmentBasePath = "C:/Users/Tan Phong/IdeaProjects/PROJECT_PROJECT/Attachment_Project/" + projectCode + "/";
+        String memberAttachmentBasePath = "C:/Users/Tan Phong/IdeaProjects/PROJECT_PROJECT/Attachment_Member/";
+
+        try (Connection connection = DriverManager.getConnection(Connect_SQL.jdbcURL, Connect_SQL.USERNAME, Connect_SQL.PASSWORD)) {
+
+            String checkManagerSQL = "SELECT role FROM Work WHERE project_code = ? AND username = ?";
+            try (PreparedStatement checkManagerStmt = connection.prepareStatement(checkManagerSQL)) {
+                checkManagerStmt.setString(1, projectCode);
+                checkManagerStmt.setString(2, username);
+                ResultSet rs = checkManagerStmt.executeQuery();
+                if (rs.next() && "Manager".equals(rs.getString("role"))) {
+                    isManager = true;
+                }
+            }
+
+            String projectSQL = "SELECT project_name, requirement, deadline FROM Project WHERE project_code = ?";
+            try (PreparedStatement projectStmt = connection.prepareStatement(projectSQL)) {
+                projectStmt.setString(1, projectCode);
+                ResultSet rs = projectStmt.executeQuery();
+                if (rs.next()) {
+                    projectName = rs.getString("project_name");
+                    requirement = rs.getString("requirement");
+                    deadline = rs.getString("deadline");
+                }
+            }
+
+            File projectAttachmentFolder = new File(projectAttachmentBasePath);
+            if (projectAttachmentFolder.exists() && projectAttachmentFolder.isDirectory()) {
+                for (File file : projectAttachmentFolder.listFiles()) {
+                    attachmentsArray.add(file.getName());
+                }
+            }
+
+            String memberSQL = "SELECT username, role, work, status, deadline FROM Work WHERE project_code = ?";
+            try (PreparedStatement memberStmt = connection.prepareStatement(memberSQL)) {
+                memberStmt.setString(1, projectCode);
+                ResultSet rs = memberStmt.executeQuery();
+                while (rs.next()) {
+                    JsonObject memberObj = new JsonObject();
+                    String memberUsername = rs.getString("username");
+                    memberObj.addProperty("name", memberUsername);
+                    memberObj.addProperty("role", rs.getString("role"));
+                    memberObj.addProperty("work", rs.getString("work"));
+                    memberObj.addProperty("work_status", rs.getString("status"));
+                    memberObj.addProperty("deadline", rs.getString("deadline"));
+
+                    JsonArray memberAttachmentsArray = new JsonArray();
+                    File memberAttachmentFolder = new File(memberAttachmentBasePath + memberUsername + "/");
+                    if (memberAttachmentFolder.exists() && memberAttachmentFolder.isDirectory()) {
+                        for (File file : memberAttachmentFolder.listFiles()) {
+                            memberAttachmentsArray.add(file.getName());
+                        }
+                    }
+                    memberObj.add("work_attachments", memberAttachmentsArray);
+
+                    JsonArray workSubmitArray = new JsonArray();
+                    memberObj.add("work_submit", workSubmitArray);
+
+                    membersArray.add(memberObj);
+                }
+            }
+
+            result.addProperty("manager_status", isManager ? "true" : "false");
+            result.addProperty("project_name", projectName);
+            result.addProperty("requirement", requirement);
+            result.add("attachments", attachmentsArray);
+            result.addProperty("deadline", deadline);
+            result.add("members", membersArray);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return gson.toJson(result);
+    }
 
 }
