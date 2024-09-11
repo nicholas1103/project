@@ -299,7 +299,9 @@ public class Controller {
         return isUpdated;
     }
 
-    public String getProjectDetails(String projectCode, String username) {
+    @GetMapping("/getProjectDetails")
+    public String getProjectDetails(@RequestParam("projectCode") String projectCode,
+                                                    @RequestParam("userName") String username) {
         JsonObject result = new JsonObject();
         Gson gson = new Gson();
 
@@ -310,8 +312,8 @@ public class Controller {
         JsonArray attachmentsArray = new JsonArray();
         JsonArray membersArray = new JsonArray();
 
-        String projectAttachmentBasePath = "C:/Users/Tan Phong/IdeaProjects/PROJECT_PROJECT/Attachment_Project/" + projectCode + "/";
-        String memberAttachmentBasePath = "C:/Users/Tan Phong/IdeaProjects/PROJECT_PROJECT/Attachment_Member/";
+        String projectAttachmentBasePath = File_Path.file_path + "Attachment_Project/" + projectCode + "/";
+        String memberAttachmentBasePath = File_Path.file_path + "Attachment_Member/";
 
         try (Connection connection = DriverManager.getConnection(Connect_SQL.jdbcURL, Connect_SQL.USERNAME, Connect_SQL.PASSWORD)) {
 
@@ -380,10 +382,108 @@ public class Controller {
             result.add("members", membersArray);
 
         } catch (Exception e) {
+            ResponseEntity.status(500).body(e.getMessage());
+        }
+
+        return result.toString();
+    }
+
+    public List<MultipartFile> getAttachments(String projectCode) {
+        JsonObject result = new JsonObject();
+
+        String projectAttachmentsPath = File_Path.file_path + projectCode + "/Attachment_Project/";
+        String memberAttachmentsPath = File_Path.file_path + projectCode + "/Attachment_Member/";
+
+        try {
+            JsonObject projectAttachments = new JsonObject();
+            File projectAttachmentsDir = new File(projectAttachmentsPath);
+            if (projectAttachmentsDir.exists() && projectAttachmentsDir.isDirectory()) {
+                File[] projectFiles = projectAttachmentsDir.listFiles();
+                if (projectFiles != null) {
+                    for (File file : projectFiles) {
+                        String fileName = file.getName();
+                        String fileContent = readFileToString(file);
+                        projectAttachments.addProperty(fileName, fileContent);
+                    }
+                }
+            }
+            result.add("ProjectAttachments", projectAttachments);
+
+            JsonArray membersArray = new JsonArray();
+            File memberAttachmentsDir = new File(memberAttachmentsPath);
+            if (memberAttachmentsDir.exists() && memberAttachmentsDir.isDirectory()) {
+                File[] memberFolders = memberAttachmentsDir.listFiles(File::isDirectory);
+                if (memberFolders != null) {
+                    for (File memberFolder : memberFolders) {
+                        JsonObject memberJson = new JsonObject();
+                        String username = memberFolder.getName();
+
+                        JsonObject memberAttachments = new JsonObject();
+                        File[] memberFiles = memberFolder.listFiles();
+                        if (memberFiles != null) {
+                            for (File file : memberFiles) {
+                                String fileName = file.getName();
+                                String fileContent = readFileToString(file);
+                                memberAttachments.addProperty(fileName, fileContent);
+                            }
+                        }
+                        memberJson.add("MemberAttachments", memberAttachments);
+                        memberJson.addProperty("username", username);
+
+                        membersArray.add(memberJson);
+                    }
+                }
+            }
+            result.add("members", membersArray);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            result.addProperty("error", "An error occurred while accessing files.");
+        } catch (Exception e) {
+            e.printStackTrace();
+            result.addProperty("error", "An unexpected error occurred.");
+        }
+
+        return convertJsonToMultipartFiles(result.toString());
+    }
+
+    private static String readFileToString(File file) throws IOException {
+        Path filePath = Paths.get(file.getAbsolutePath());
+        byte[] fileBytes = Files.readAllBytes(filePath);
+        return new String(fileBytes);
+    }
+
+    public static List<MultipartFile> convertJsonToMultipartFiles(String jsonString) {
+        List<MultipartFile> multipartFiles = new ArrayList<>();
+
+        try {
+            JsonObject jsonObject = JsonParser.parseString(jsonString).getAsJsonObject();
+
+            JsonObject projectAttachments = jsonObject.getAsJsonObject("ProjectAttachments");
+            for (String fileName : projectAttachments.keySet()) {
+                String fileContent = projectAttachments.get(fileName).getAsString();
+                multipartFiles.add(createMultipartFile(fileName, fileContent));
+            }
+
+            JsonArray members = jsonObject.getAsJsonArray("members");
+            for (JsonElement memberElement : members) {
+                JsonObject member = memberElement.getAsJsonObject();
+                JsonObject memberAttachments = member.getAsJsonObject("MemberAttachments");
+                for (String fileName : memberAttachments.keySet()) {
+                    String fileContent = memberAttachments.get(fileName).getAsString();
+                    multipartFiles.add(createMultipartFile(fileName, fileContent));
+                }
+            }
+
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
-        return gson.toJson(result);
+        return multipartFiles;
+    }
+
+    private static MultipartFile createMultipartFile(String fileName, String fileContent) throws IOException {
+        return new MockMultipartFile(fileName, fileName, "application/octet-stream", fileContent.getBytes());
     }
 
 }
