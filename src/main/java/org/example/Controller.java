@@ -301,7 +301,7 @@ public class Controller {
 
     @GetMapping("/getProjectDetails")
     public String getProjectDetails(@RequestParam("projectCode") String projectCode,
-                                                    @RequestParam("userName") String username) {
+                                    @RequestParam("userName") String username) {
         JsonObject result = new JsonObject();
         Gson gson = new Gson();
 
@@ -312,11 +312,10 @@ public class Controller {
         JsonArray attachmentsArray = new JsonArray();
         JsonArray membersArray = new JsonArray();
 
-        String projectAttachmentBasePath = File_Path.file_path + "Attachment_Project/" + projectCode + "/";
-        String memberAttachmentBasePath = File_Path.file_path + "Attachment_Member/";
+        String projectAttachmentBasePath = File_Path.file_path + projectCode + "/Attachment_Project/";
+        String memberAttachmentBasePath = File_Path.file_path + projectCode + "/Attachment_Member/";
 
         try (Connection connection = DriverManager.getConnection(Connect_SQL.jdbcURL, Connect_SQL.USERNAME, Connect_SQL.PASSWORD)) {
-
             String checkManagerSQL = "SELECT role FROM Work WHERE project_code = ? AND username = ?";
             try (PreparedStatement checkManagerStmt = connection.prepareStatement(checkManagerSQL)) {
                 checkManagerStmt.setString(1, projectCode);
@@ -382,7 +381,7 @@ public class Controller {
             result.add("members", membersArray);
 
         } catch (Exception e) {
-            ResponseEntity.status(500).body(e.getMessage());
+            return ResponseEntity.status(500).body(e.getMessage()).toString();
         }
 
         return result.toString();
