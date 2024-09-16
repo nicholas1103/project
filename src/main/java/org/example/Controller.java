@@ -541,7 +541,11 @@ public class Controller {
     // --------------------------------------------- Ham dung de tra ve attachment submit
 
     @PostMapping("/addResponse")
-    public void addResponse(String projectCode, String receiver, String sender, String response, String timestamp) {
+    public void addResponse(@RequestParam("projectCode") String projectCode,
+                            @RequestParam("receiver") String receiver,
+                            @RequestParam("sender") String sender,
+                            @RequestParam("response") String response,
+                            @RequestParam("timestamp") String timestamp) {
         try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
 
             String workCode = null;
