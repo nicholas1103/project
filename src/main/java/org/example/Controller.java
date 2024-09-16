@@ -126,7 +126,8 @@ public class Controller {
             @RequestPart("jsonRequest") String jsonRequest,
             @RequestParam(value = "files", required = false) List<MultipartFile> files,
             @RequestParam("creator") String creatorUsername) {
-
+        System.out.println(jsonRequest);
+        System.out.println(creatorUsername);
         Gson gson = new Gson();
         JsonObject projectData = gson.fromJson(jsonRequest, JsonObject.class);
 
@@ -182,7 +183,7 @@ public class Controller {
                 MultipartFile file = findFileByName(files, fileName);
                 if (file != null) {
                     String fullFilePath = projectFolder.getPath() + "/" + fileName;
-                    saveFileContent(projectFolder.getPath() + "/", fileName, new String(file.getBytes(), StandardCharsets.UTF_8));
+                    saveFileContent(fullFilePath,file);
                     String attachmentCode = generateProjectCode("Attachment");
                     attachmentStmt.setString(1, attachmentCode);
                     attachmentStmt.setString(2, projectCode);
@@ -219,7 +220,7 @@ public class Controller {
                     MultipartFile file = findFileByName(files, fileName);
                     if (file != null) {
                         String fullFilePath = memberFolder.getPath() + "/" + fileName;
-                        saveFileContent(memberFolder.getPath() + "/", fileName, new String(file.getBytes(), StandardCharsets.UTF_8));
+                        saveFileContent(fullFilePath,file);
 
                         String attachmentMemberCode = generateProjectCode("Attachment_Members");
                         attachmentMemberStmt.setString(1, attachmentMemberCode);
@@ -240,11 +241,10 @@ public class Controller {
 
 
 
-    private void saveFileContent(String folder, String fileName, String content) throws IOException {
-        File file = new File(folder + fileName);
-        try (FileOutputStream fos = new FileOutputStream(file)) {
-            byte[] contentBytes = content.getBytes(StandardCharsets.UTF_8);
-            fos.write(contentBytes);
+    private void saveFileContent(String fullFilePath, MultipartFile file) throws IOException {
+        // Ghi nội dung tệp vào đường dẫn chỉ định
+        try (FileOutputStream fos = new FileOutputStream(fullFilePath)) {
+            fos.write(file.getBytes());
         }
     }
 
