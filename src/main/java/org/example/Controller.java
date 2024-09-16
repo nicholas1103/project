@@ -489,4 +489,180 @@ public class Controller {
     private static MultipartFile createMultipartFile(String fileName, String fileContent) throws IOException {
         return new MockMultipartFile(fileName, fileName, "application/octet-stream", fileContent.getBytes());
     }
+
+
+    @GetMapping("/saveWorkSubmit")
+    public void saveWorkSubmit(String projectCode, String username, List<MultipartFile> files) {
+        String workSubmitPath = File_Path.file_path + projectCode + "/Attachment_Submit/" + username + "/";
+
+        File directory = new File(workSubmitPath);
+        if (!directory.exists()) {
+            directory.mkdirs();
+        }
+
+        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
+            String sql = "INSERT INTO WorkSubmit (worksubmitcode, project_code, username, file_path) VALUES (?, ?, ?, ?)";
+            PreparedStatement pstmt = connection.prepareStatement(sql);
+
+            for (MultipartFile file : files) {
+                String fileName = file.getOriginalFilename();
+                String filePath = workSubmitPath + fileName;
+                File savedFile = new File(filePath);
+                try (FileOutputStream fos = new FileOutputStream(savedFile)) {
+                    fos.write(file.getBytes());
+                }
+
+                pstmt.setString(1, generateProjectCode("WorkSubmit"));
+                pstmt.setString(2, projectCode);
+                pstmt.setString(3, username);
+                pstmt.setString(4, filePath);
+
+                pstmt.executeUpdate();
+            }
+        } catch (SQLException | IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // --------------------------------------------- Ham dung de luu cac attachment submit cua cac thanh vien
+
+    @GetMapping("/getWorkSubmitFiles")
+    public List<MultipartFile> getWorkSubmitFiles(String projectCode, String username) {
+        JsonObject result = new JsonObject();
+
+        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
+
+            String sql = "SELECT file_path FROM WorkSubmit WHERE project_code = ? AND username = ?";
+            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+                pstmt.setString(1, projectCode);
+                pstmt.setString(2, username);
+
+                ResultSet rs = pstmt.executeQuery();
+
+                while (rs.next()) {
+                    String filePath = rs.getString("file_path");
+                    String fileName = new File(filePath).getName();
+                    String fileContent = readFileContent(filePath);
+                    result.addProperty(fileName, fileContent);
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return convertJsonToMultipartFilesSubmit(result);
+    }
+
+    private String readFileContent(String filePath) {
+        StringBuilder content = new StringBuilder();
+        try {
+            Files.lines(Paths.get(filePath)).forEach(content::append);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return content.toString();
+    }
+
+    public static List<MultipartFile> convertJsonToMultipartFilesSubmit(JsonObject jsonObject) {
+        List<MultipartFile> multipartFiles = new ArrayList<>();
+
+        for (String key : jsonObject.keySet()) {
+            JsonElement valueElement = jsonObject.get(key);
+            String fileName = key;
+            String fileContent = valueElement.getAsString();
+
+            MultipartFile multipartFile = new MockMultipartFile(fileName, fileName, "text/plain", fileContent.getBytes(StandardCharsets.UTF_8));
+
+            multipartFiles.add(multipartFile);
+        }
+
+        return multipartFiles;
+    }
+
+
+    // --------------------------------------------- Ham dung de tra ve attachment submit
+
+    @PostMapping("/addResponse")
+    public void addResponse(String projectCode, String receiver, String sender, String response, String timestamp) {
+        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
+
+            String workCode = null;
+            String selectWorkCodeSQL = "SELECT work_code FROM Work WHERE project_code = ? AND username = ?";
+            try (PreparedStatement preparedStatement = connection.prepareStatement(selectWorkCodeSQL)) {
+                preparedStatement.setString(1, projectCode);
+                preparedStatement.setString(2, receiver);
+                try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                    if (resultSet.next()) {
+                        workCode = resultSet.getString("work_code");
+                    } else {
+                        throw new SQLException("No matching work code found for the provided projectCode and receiver.");
+                    }
+                }
+            }
+
+            String responseCode = generateProjectCode("Response");
+
+            String insertResponseSQL = "INSERT INTO Response (response_code, work_code, sender, content, time_stamp) VALUES (?, ?, ?, ?, ?)";
+            try (PreparedStatement preparedStatement = connection.prepareStatement(insertResponseSQL)) {
+                preparedStatement.setString(1, responseCode);
+                preparedStatement.setString(2, workCode);
+                preparedStatement.setString(3, sender);
+                preparedStatement.setString(4, response);
+                preparedStatement.setString(5, timestamp);
+
+                preparedStatement.executeUpdate();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // ------------------------------------- Ham de add Response cua 1 nguoi ve phan cua 1 nguoi bat ki nao do
+
+    @GetMapping("/getResponseData")
+    public String getResponseData(@RequestParam("projectCode") String projectCode, @RequestParam("userName") String username) {
+        JsonObject responseData = new JsonObject();
+        Gson gson = new Gson();
+        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
+
+            String workCode = null;
+            String selectWorkCodeSQL = "SELECT work_code FROM Work WHERE project_code = ? AND username = ?";
+            try (PreparedStatement preparedStatement = connection.prepareStatement(selectWorkCodeSQL)) {
+                preparedStatement.setString(1, projectCode);
+                preparedStatement.setString(2, username);
+                try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                    if (resultSet.next()) {
+                        workCode = resultSet.getString("work_code");
+                    } else {
+                        throw new SQLException("No matching work code found for the provided projectCode and username.");
+                    }
+                }
+            }
+
+            String selectResponseSQL = "SELECT sender, content, time_stamp FROM Response WHERE work_code = ?";
+            try (PreparedStatement preparedStatement = connection.prepareStatement(selectResponseSQL)) {
+                preparedStatement.setString(1, workCode);
+                try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                    JsonArray responseArray = new JsonArray();
+
+                    while (resultSet.next()) {
+                        JsonObject responseEntry = new JsonObject();
+                        responseEntry.addProperty("sender", resultSet.getString("sender"));
+                        responseEntry.addProperty("content", resultSet.getString("content"));
+                        responseEntry.addProperty("timestamp", resultSet.getString("time_stamp"));
+                        responseArray.add(responseEntry);
+                    }
+
+                    responseData.add("responses", responseArray);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return gson.toJson(responseData);
+    }
+
+    // ----------------------------- Ham dung de lay cac reponse cua nguoi khac ve work cua minh
 }
