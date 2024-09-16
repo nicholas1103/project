@@ -123,8 +123,8 @@ public class Controller {
 
     @PostMapping("/addProject")
     public String addProject(
-            @RequestBody String jsonRequest,
-            @RequestParam("files") List<MultipartFile> files,
+            @RequestPart("jsonRequest") String jsonRequest,
+            @RequestParam(value = "files", required = false) List<MultipartFile> files,
             @RequestParam("creator") String creatorUsername) {
 
         Gson gson = new Gson();
@@ -183,7 +183,6 @@ public class Controller {
                 if (file != null) {
                     String fullFilePath = projectFolder.getPath() + "/" + fileName;
                     saveFileContent(projectFolder.getPath() + "/", fileName, new String(file.getBytes(), StandardCharsets.UTF_8));
-
                     String attachmentCode = generateProjectCode("Attachment");
                     attachmentStmt.setString(1, attachmentCode);
                     attachmentStmt.setString(2, projectCode);
@@ -231,7 +230,7 @@ public class Controller {
                     }
                 }
             }
-
+            System.out.println("successfully");
             return "Project added successfully";
 
         } catch (SQLException | IOException e) {
