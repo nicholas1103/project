@@ -1,21 +1,13 @@
 package org.example;
 
 import com.google.gson.*;
-import jakarta.annotation.Resource;
-import org.apache.tomcat.util.http.fileupload.IOUtils;
-import org.springframework.core.io.InputStreamResource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.*;
 import java.util.ArrayList;
@@ -258,9 +250,6 @@ public class Controller {
     }
 
 
-    public MultipartFile createMockMultipartFile(String fileName, String content) {
-        return new MockMultipartFile(fileName, fileName, "text/plain", content.getBytes(StandardCharsets.UTF_8));
-    }
 
     @PostMapping("/updateProjectName")
     public boolean updateProjectName(@RequestParam("projectCode") String projectCode,
@@ -383,67 +372,67 @@ public class Controller {
     }
 
 
-    public List<MultipartFile> getAttachments(String projectCode) {
-        JsonObject result = new JsonObject();
-        JsonObject projectAttachments = new JsonObject();
-        JsonArray membersArray = new JsonArray();
-
-        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
-            String projectSQL = "SELECT file_name FROM Attachment WHERE project_code = ?";
-            try (PreparedStatement projectStmt = connection.prepareStatement(projectSQL)) {
-                projectStmt.setString(1, projectCode);
-                ResultSet projectRs = projectStmt.executeQuery();
-                while (projectRs.next()) {
-                    String filePath = projectRs.getString("file_name");
-                    File file = new File(filePath);
-                    if (file.exists()) {
-                        String fileName = file.getName();
-                        String fileContent = readFileToString(file);
-                        projectAttachments.addProperty(fileName, fileContent);
-                    }
-                }
-            }
-            result.add("attachmentProject", projectAttachments);
-
-            String memberSQL = "SELECT username FROM Work WHERE project_code = ?";
-            try (PreparedStatement memberStmt = connection.prepareStatement(memberSQL)) {
-                memberStmt.setString(1, projectCode);
-                ResultSet memberRs = memberStmt.executeQuery();
-                while (memberRs.next()) {
-                    String username = memberRs.getString("username");
-
-                    JsonObject memberAttachments = new JsonObject();
-                    String memberAttachmentSQL = "SELECT file_path FROM Attachment_Members WHERE project_code = ? AND username = ?";
-                    try (PreparedStatement memberAttachmentStmt = connection.prepareStatement(memberAttachmentSQL)) {
-                        memberAttachmentStmt.setString(1, projectCode);
-                        memberAttachmentStmt.setString(2, username);
-                        ResultSet memberAttachmentRs = memberAttachmentStmt.executeQuery();
-                        while (memberAttachmentRs.next()) {
-                            String filePath = memberAttachmentRs.getString("file_path");
-                            File file = new File(filePath);
-                            if (file.exists()) {
-                                String fileName = file.getName();
-                                String fileContent = readFileToString(file);
-                                memberAttachments.addProperty(fileName, fileContent);
-                            }
-                        }
-                    }
-
-                    JsonObject memberJson = new JsonObject();
-                    memberJson.addProperty("username", username);
-                    memberJson.add("MemberAttachments", memberAttachments);
-                    membersArray.add(memberJson);
-                }
-            }
-            result.add("members", membersArray);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            result.addProperty("error", "An error occurred while accessing the database or files.");
-        }
-
-        return convertJsonToMultipartFiles(result.toString());
-    }
+//    public List<MultipartFile> getAttachments(String projectCode) {
+//        JsonObject result = new JsonObject();
+//        JsonObject projectAttachments = new JsonObject();
+//        JsonArray membersArray = new JsonArray();
+//
+//        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
+//            String projectSQL = "SELECT file_name FROM Attachment WHERE project_code = ?";
+//            try (PreparedStatement projectStmt = connection.prepareStatement(projectSQL)) {
+//                projectStmt.setString(1, projectCode);
+//                ResultSet projectRs = projectStmt.executeQuery();
+//                while (projectRs.next()) {
+//                    String filePath = projectRs.getString("file_name");
+//                    File file = new File(filePath);
+//                    if (file.exists()) {
+//                        String fileName = file.getName();
+//                        String fileContent = readFileToString(file);
+//                        projectAttachments.addProperty(fileName, fileContent);
+//                    }
+//                }
+//            }
+//            result.add("attachmentProject", projectAttachments);
+//
+//            String memberSQL = "SELECT username FROM Work WHERE project_code = ?";
+//            try (PreparedStatement memberStmt = connection.prepareStatement(memberSQL)) {
+//                memberStmt.setString(1, projectCode);
+//                ResultSet memberRs = memberStmt.executeQuery();
+//                while (memberRs.next()) {
+//                    String username = memberRs.getString("username");
+//
+//                    JsonObject memberAttachments = new JsonObject();
+//                    String memberAttachmentSQL = "SELECT file_path FROM Attachment_Members WHERE project_code = ? AND username = ?";
+//                    try (PreparedStatement memberAttachmentStmt = connection.prepareStatement(memberAttachmentSQL)) {
+//                        memberAttachmentStmt.setString(1, projectCode);
+//                        memberAttachmentStmt.setString(2, username);
+//                        ResultSet memberAttachmentRs = memberAttachmentStmt.executeQuery();
+//                        while (memberAttachmentRs.next()) {
+//                            String filePath = memberAttachmentRs.getString("file_path");
+//                            File file = new File(filePath);
+//                            if (file.exists()) {
+//                                String fileName = file.getName();
+//                                String fileContent = readFileToString(file);
+//                                memberAttachments.addProperty(fileName, fileContent);
+//                            }
+//                        }
+//                    }
+//
+//                    JsonObject memberJson = new JsonObject();
+//                    memberJson.addProperty("username", username);
+//                    memberJson.add("MemberAttachments", memberAttachments);
+//                    membersArray.add(memberJson);
+//                }
+//            }
+//            result.add("members", membersArray);
+//
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            result.addProperty("error", "An error occurred while accessing the database or files.");
+//        }
+//
+//        return convertJsonToMultipartFiles(result.toString());
+//    }
 
     private static String readFileToString(File file) throws IOException {
         try (FileReader fr = new FileReader(file, StandardCharsets.UTF_8);
@@ -457,38 +446,6 @@ public class Controller {
         }
     }
 
-
-    public static List<MultipartFile> convertJsonToMultipartFiles(String jsonString) {
-        List<MultipartFile> multipartFiles = new ArrayList<>();
-
-        try {
-            JsonObject jsonObject = JsonParser.parseString(jsonString).getAsJsonObject();
-            JsonObject projectAttachments = jsonObject.getAsJsonObject("attachmentProject");
-            for (String fileName : projectAttachments.keySet()) {
-                String fileContent = projectAttachments.get(fileName).getAsString();
-                multipartFiles.add(createMultipartFile(fileName, fileContent));
-            }
-
-            JsonArray members = jsonObject.getAsJsonArray("members");
-            for (JsonElement memberElement : members) {
-                JsonObject member = memberElement.getAsJsonObject();
-                JsonObject memberAttachments = member.getAsJsonObject("MemberAttachments");
-                for (String fileName : memberAttachments.keySet()) {
-                    String fileContent = memberAttachments.get(fileName).getAsString();
-                    multipartFiles.add(createMultipartFile(fileName, fileContent));
-                }
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        return multipartFiles;
-    }
-
-    private static MultipartFile createMultipartFile(String fileName, String fileContent) throws IOException {
-        return new MockMultipartFile(fileName, fileName, "application/octet-stream", fileContent.getBytes());
-    }
 
 
     @GetMapping("/saveWorkSubmit")
@@ -526,33 +483,33 @@ public class Controller {
 
     // --------------------------------------------- Ham dung de luu cac attachment submit cua cac thanh vien
 
-    @GetMapping("/getWorkSubmitFiles")
-    public List<MultipartFile> getWorkSubmitFiles(String projectCode, String username) {
-        JsonObject result = new JsonObject();
-
-        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
-
-            String sql = "SELECT file_path FROM WorkSubmit WHERE project_code = ? AND username = ?";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setString(1, projectCode);
-                pstmt.setString(2, username);
-
-                ResultSet rs = pstmt.executeQuery();
-
-                while (rs.next()) {
-                    String filePath = rs.getString("file_path");
-                    String fileName = new File(filePath).getName();
-                    String fileContent = readFileContent(filePath);
-                    result.addProperty(fileName, fileContent);
-                }
-            }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
-        return convertJsonToMultipartFilesSubmit(result);
-    }
+//    @GetMapping("/getWorkSubmitFiles")
+//    public List<MultipartFile> getWorkSubmitFiles(String projectCode, String username) {
+//        JsonObject result = new JsonObject();
+//
+//        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
+//
+//            String sql = "SELECT file_path FROM WorkSubmit WHERE project_code = ? AND username = ?";
+//            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+//                pstmt.setString(1, projectCode);
+//                pstmt.setString(2, username);
+//
+//                ResultSet rs = pstmt.executeQuery();
+//
+//                while (rs.next()) {
+//                    String filePath = rs.getString("file_path");
+//                    String fileName = new File(filePath).getName();
+//                    String fileContent = readFileContent(filePath);
+//                    result.addProperty(fileName, fileContent);
+//                }
+//            }
+//
+//        } catch (SQLException e) {
+//            e.printStackTrace();
+//        }
+//
+//        return convertJsonToMultipartFilesSubmit(result);
+//    }
 
     private String readFileContent(String filePath) {
         StringBuilder content = new StringBuilder();
@@ -564,21 +521,21 @@ public class Controller {
         return content.toString();
     }
 
-    public static List<MultipartFile> convertJsonToMultipartFilesSubmit(JsonObject jsonObject) {
-        List<MultipartFile> multipartFiles = new ArrayList<>();
-
-        for (String key : jsonObject.keySet()) {
-            JsonElement valueElement = jsonObject.get(key);
-            String fileName = key;
-            String fileContent = valueElement.getAsString();
-
-            MultipartFile multipartFile = new MockMultipartFile(fileName, fileName, "text/plain", fileContent.getBytes(StandardCharsets.UTF_8));
-
-            multipartFiles.add(multipartFile);
-        }
-
-        return multipartFiles;
-    }
+//    public static List<MultipartFile> convertJsonToMultipartFilesSubmit(JsonObject jsonObject) {
+//        List<MultipartFile> multipartFiles = new ArrayList<>();
+//
+//        for (String key : jsonObject.keySet()) {
+//            JsonElement valueElement = jsonObject.get(key);
+//            String fileName = key;
+//            String fileContent = valueElement.getAsString();
+//
+//            MultipartFile multipartFile = new MockMultipartFile(fileName, fileName, "text/plain", fileContent.getBytes(StandardCharsets.UTF_8));
+//
+//            multipartFiles.add(multipartFile);
+//        }
+//
+//        return multipartFiles;
+//    }
 
 
     // --------------------------------------------- Ham dung de tra ve attachment submit
