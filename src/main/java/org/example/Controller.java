@@ -623,7 +623,7 @@ public class Controller {
 
     // ----------------------------- Ham dung de lay cac reponse cua nguoi khac ve work cua minh
 
-    @GetMapping("/updateProjectRequirement")
+    @PostMapping("/updateProjectRequirement")
     public ResponseEntity<String> updateProjectRequirement(@RequestParam("projectCode") String projectCode, @RequestParam("newRequirement") String newRequirement) {
         String updateSQL = "UPDATE Project SET requirement = ? WHERE project_code = ?";
 
@@ -650,8 +650,8 @@ public class Controller {
 
     //-------------------------------------------- Ham dung de update requirement cua Project
 
-    @GetMapping("/updateProjectDeadline")
-    public ResponseEntity<String> updateProjectDeadline(@RequestParam("/projectCode") String projectCode, @RequestParam("newDeadline") String newDeadline) {
+    @PostMapping("/updateProjectDeadline")
+    public ResponseEntity<String> updateProjectDeadline(@RequestParam("projectCode") String projectCode, @RequestParam("newDeadline") String newDeadline) {
         String updateSQL = "UPDATE Project SET deadline = ? WHERE project_code = ?";
 
         try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
