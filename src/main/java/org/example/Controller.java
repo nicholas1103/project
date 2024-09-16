@@ -622,4 +622,56 @@ public class Controller {
     }
 
     // ----------------------------- Ham dung de lay cac reponse cua nguoi khac ve work cua minh
+
+    @GetMapping("/updateProjectRequirement")
+    public ResponseEntity<String> updateProjectRequirement(@RequestParam("projectCode") String projectCode, @RequestParam("newRequirement") String newRequirement) {
+        String updateSQL = "UPDATE Project SET requirement = ? WHERE project_code = ?";
+
+        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
+             PreparedStatement pstmt = connection.prepareStatement(updateSQL)) {
+
+            pstmt.setString(1, newRequirement);
+            pstmt.setString(2, projectCode);
+
+            int rowsAffected = pstmt.executeUpdate();
+            if (rowsAffected > 0) {
+                System.out.println("Project requirement updated successfully.");
+                return ResponseEntity.ok().body("Project requirement updated successfully.");
+            } else {
+                System.out.println("No project found with the provided project_code.");
+                return ResponseEntity.status(404).body("No project found with the provided project_code.");
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return ResponseEntity.status(404).body("The project request to be updated failed.");
+    }
+
+    //-------------------------------------------- Ham dung de update requirement cua Project
+
+    @GetMapping("/updateProjectDeadline")
+    public ResponseEntity<String> updateProjectDeadline(@RequestParam("/projectCode") String projectCode, @RequestParam("newDeadline") String newDeadline) {
+        String updateSQL = "UPDATE Project SET deadline = ? WHERE project_code = ?";
+
+        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
+             PreparedStatement pstmt = connection.prepareStatement(updateSQL)) {
+
+            pstmt.setString(1, newDeadline);
+            pstmt.setString(2, projectCode);
+
+            int rowsAffected = pstmt.executeUpdate();
+            if (rowsAffected > 0) {
+                return ResponseEntity.ok().body("Project deadline updated successfully.");
+            } else {
+                return ResponseEntity.status(404).body("No project found with the provided project_code.");
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return ResponseEntity.status(404).body("The project request to be updated failed.");
+    }
+
+    //------------------------------------------------ Ham dung de update deadline cua Project
 }
