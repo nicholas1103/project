@@ -695,4 +695,71 @@ public class Controller {
     }
 
     //------------------------------------------------ Ham dung de update deadline cua Project
+
+    @PostMapping("/deleteProject")
+    public ResponseEntity<String> deleteProject(@RequestParam("projectCode") String projectCode) {
+        String responseMessage = "Project and related data deleted successfully";
+
+        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
+            connection.setAutoCommit(false);
+
+            try {
+                String deleteAttachmentMembersSQL = "DELETE FROM Attachment_Members WHERE project_code = ?";
+                try (PreparedStatement stmt = connection.prepareStatement(deleteAttachmentMembersSQL)) {
+                    stmt.setString(1, projectCode);
+                    stmt.executeUpdate();
+                }
+
+                String deleteAttachmentSQL = "DELETE FROM Attachment WHERE project_code = ?";
+                try (PreparedStatement stmt = connection.prepareStatement(deleteAttachmentSQL)) {
+                    stmt.setString(1, projectCode);
+                    stmt.executeUpdate();
+                }
+
+                String deleteResponseSQL = "DELETE FROM Response WHERE work_code IN (SELECT work_code FROM Work WHERE project_code = ?)";
+                try (PreparedStatement stmt = connection.prepareStatement(deleteResponseSQL)) {
+                    stmt.setString(1, projectCode);
+                    stmt.executeUpdate();
+                }
+
+                String deleteResultSQL = "DELETE FROM Result WHERE work_code IN (SELECT work_code FROM Work WHERE project_code = ?)";
+                try (PreparedStatement stmt = connection.prepareStatement(deleteResultSQL)) {
+                    stmt.setString(1, projectCode);
+                    stmt.executeUpdate();
+                }
+
+                String deleteSubmitSQL = "DELETE FROM WorkSubmit WHERE project_code = ?";
+                try (PreparedStatement stmt = connection.prepareStatement(deleteSubmitSQL)) {
+                    stmt.setString(1, projectCode);
+                    stmt.executeUpdate();
+                }
+
+                String deleteWorkSQL = "DELETE FROM Work WHERE project_code = ?";
+                try (PreparedStatement stmt = connection.prepareStatement(deleteWorkSQL)) {
+                    stmt.setString(1, projectCode);
+                    stmt.executeUpdate();
+                }
+
+                String deleteProjectSQL = "DELETE FROM Project WHERE project_code = ?";
+                try (PreparedStatement stmt = connection.prepareStatement(deleteProjectSQL)) {
+                    stmt.setString(1, projectCode);
+                    stmt.executeUpdate();
+                }
+
+                connection.commit();
+
+            } catch (SQLException e) {
+                connection.rollback();
+                e.printStackTrace();
+                responseMessage = "Error occurred while deleting project: " + e.getMessage();
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMessage);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Database connection failed: " + e.getMessage());
+        }
+
+        return ResponseEntity.ok(responseMessage);
+    }
+
 }
