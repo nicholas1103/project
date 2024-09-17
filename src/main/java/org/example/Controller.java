@@ -114,7 +114,7 @@ public class Controller {
     }
 
     @PostMapping("/addProject")
-    public String addProject(
+    public ResponseEntity<String> addProject(
             @RequestPart("jsonRequest") String jsonRequest,
             @RequestParam(value = "files", required = false) List<MultipartFile> files,
             @RequestParam("creator") String creatorUsername) {
@@ -224,10 +224,10 @@ public class Controller {
                 }
             }
             System.out.println("successfully");
-            return "Project added successfully";
+            return ResponseEntity.ok("Project added successfully");
 
         } catch (SQLException | IOException e) {
-            return e.getMessage();
+            return ResponseEntity.status(500).body(e.getMessage());
         }
     }
 
