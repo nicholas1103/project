@@ -28,14 +28,17 @@ public class Controller {
 
     public int getNextProjectId(String prefix) {
         int nextId = 1;
-        String sql = "SELECT COUNT(*) FROM " + prefix;
+        String sql = "SELECT MAX(CAST(SUBSTRING_INDEX(project_code, '-', -1) AS UNSIGNED)) FROM " + prefix;
 
         try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
              PreparedStatement stmt = connection.prepareStatement(sql)) {
 
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
-                nextId = rs.getInt(1) + 1;
+                int currentMaxId = rs.getInt(1);
+                if (currentMaxId > 0) {
+                    nextId = currentMaxId + 1;
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
