@@ -751,12 +751,11 @@ public class Controller {
             } catch (SQLException e) {
                 connection.rollback();
                 e.printStackTrace();
-                responseMessage = "Error occurred while deleting project: " + e.getMessage();
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMessage);
+                return ResponseEntity.status(500).body("Error occurred while deleting project: " + e.getMessage());
             }
         } catch (SQLException e) {
             e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Database connection failed: " + e.getMessage());
+            return ResponseEntity.status(500).body("Database connection failed: " + e.getMessage());
         }
 
         return ResponseEntity.ok(responseMessage);
