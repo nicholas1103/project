@@ -372,81 +372,81 @@ public class Controller {
     }
 
 
-//    public List<MultipartFile> getAttachments(String projectCode) {
-//        JsonObject result = new JsonObject();
-//        JsonObject projectAttachments = new JsonObject();
-//        JsonArray membersArray = new JsonArray();
-//
-//        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
-//            String projectSQL = "SELECT file_name FROM Attachment WHERE project_code = ?";
-//            try (PreparedStatement projectStmt = connection.prepareStatement(projectSQL)) {
-//                projectStmt.setString(1, projectCode);
-//                ResultSet projectRs = projectStmt.executeQuery();
-//                while (projectRs.next()) {
-//                    String filePath = projectRs.getString("file_name");
-//                    File file = new File(filePath);
-//                    if (file.exists()) {
-//                        String fileName = file.getName();
-//                        String fileContent = readFileToString(file);
-//                        projectAttachments.addProperty(fileName, fileContent);
-//                    }
-//                }
-//            }
-//            result.add("attachmentProject", projectAttachments);
-//
-//            String memberSQL = "SELECT username FROM Work WHERE project_code = ?";
-//            try (PreparedStatement memberStmt = connection.prepareStatement(memberSQL)) {
-//                memberStmt.setString(1, projectCode);
-//                ResultSet memberRs = memberStmt.executeQuery();
-//                while (memberRs.next()) {
-//                    String username = memberRs.getString("username");
-//
-//                    JsonObject memberAttachments = new JsonObject();
-//                    String memberAttachmentSQL = "SELECT file_path FROM Attachment_Members WHERE project_code = ? AND username = ?";
-//                    try (PreparedStatement memberAttachmentStmt = connection.prepareStatement(memberAttachmentSQL)) {
-//                        memberAttachmentStmt.setString(1, projectCode);
-//                        memberAttachmentStmt.setString(2, username);
-//                        ResultSet memberAttachmentRs = memberAttachmentStmt.executeQuery();
-//                        while (memberAttachmentRs.next()) {
-//                            String filePath = memberAttachmentRs.getString("file_path");
-//                            File file = new File(filePath);
-//                            if (file.exists()) {
-//                                String fileName = file.getName();
-//                                String fileContent = readFileToString(file);
-//                                memberAttachments.addProperty(fileName, fileContent);
-//                            }
-//                        }
-//                    }
-//
-//                    JsonObject memberJson = new JsonObject();
-//                    memberJson.addProperty("username", username);
-//                    memberJson.add("MemberAttachments", memberAttachments);
-//                    membersArray.add(memberJson);
-//                }
-//            }
-//            result.add("members", membersArray);
-//
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//            result.addProperty("error", "An error occurred while accessing the database or files.");
-//        }
-//
-//        return convertJsonToMultipartFiles(result.toString());
-//    }
+@GetMapping("/getAttachments")
+    public List<MultipartFile> getAttachments(@RequestParam("projectCode") String projectCode, 
+                                              @RequestParam("typeString") String typeString, 
+                                              @RequestParam("username") String username) {
+        List<MultipartFile> attachmentFiles = new ArrayList<>();
 
-    private static String readFileToString(File file) throws IOException {
-        try (FileReader fr = new FileReader(file, StandardCharsets.UTF_8);
-             java.io.BufferedReader br = new java.io.BufferedReader(fr)) {
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = br.readLine()) != null) {
-                sb.append(line).append(System.lineSeparator());
+        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
+            if (typeString.equals("Attachment_Member")) {
+                String memberAttachmentSQL = "SELECT file_path FROM Attachment_Members WHERE project_code = ? AND username = ?";
+                try (PreparedStatement memberAttachmentStmt = connection.prepareStatement(memberAttachmentSQL)) {
+                    memberAttachmentStmt.setString(1, projectCode);
+                    memberAttachmentStmt.setString(2, username);
+                    ResultSet memberAttachmentRs = memberAttachmentStmt.executeQuery();
+                    while (memberAttachmentRs.next()) {
+                        String filePath = memberAttachmentRs.getString("file_path");
+                        File file = new File(filePath);
+                        if (file.exists()) {
+                            MultipartFile multipartFile = convertFileToMultipartFile(file);
+                            attachmentFiles.add(multipartFile);
+                        }
+                    }
+                }
+            } else if (typeString.equals("Attachment_Submit")) {
+                String submitSQL = "SELECT file_path FROM WorkSubmit WHERE project_code = ?";
+                try (PreparedStatement submitStmt = connection.prepareStatement(submitSQL)) {
+                    submitStmt.setString(1, projectCode);
+                    ResultSet submitRs = submitStmt.executeQuery();
+                    while (submitRs.next()) {
+                        String filePath = submitRs.getString("file_path");
+                        File file = new File(filePath);
+                        if (file.exists()) {
+                            MultipartFile multipartFile = convertFileToMultipartFile(file);
+                            attachmentFiles.add(multipartFile);
+                        }
+                    }
+                }
+            } else {
+                throw new IllegalArgumentException("Invalid typeString: " + typeString);
             }
-            return sb.toString().trim();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+
+        return attachmentFiles;
     }
 
+    private MultipartFile convertFileToMultipartFile(File file) throws IOException {
+        byte[] content = Files.readAllBytes(file.toPath());
+        return new MockMultipartFile(file.getName(), file.getName(), Files.probeContentType(file.toPath()), content);
+    }
 
+    @GetMapping("/getAttachmentProject")
+    public List<MultipartFile> getAttachmentProject(@RequestParam("projectCode") String projectCode) {
+        List<MultipartFile> attachmentFiles = new ArrayList<>();
+
+        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
+            String projectSQL = "SELECT file_name FROM Attachment WHERE project_code = ?";
+            try (PreparedStatement projectStmt = connection.prepareStatement(projectSQL)) {
+                projectStmt.setString(1, projectCode);
+                ResultSet projectRs = projectStmt.executeQuery();
+                while (projectRs.next()) {
+                    String filePath = projectRs.getString("file_name");
+                    File file = new File(filePath);
+                    if (file.exists()) {
+                        MultipartFile multipartFile = convertFileToMultipartFile(file);
+                        attachmentFiles.add(multipartFile);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return attachmentFiles;
+    }
 
     @GetMapping("/saveWorkSubmit")
     public void saveWorkSubmit(String projectCode, String username, List<MultipartFile> files) {
