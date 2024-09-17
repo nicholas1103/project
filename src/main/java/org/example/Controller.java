@@ -373,12 +373,15 @@ public class Controller {
 
 
 @GetMapping("/getAttachments")
-    public List<MultipartFile> getAttachments(@RequestParam("projectCode") String projectCode, 
-                                              @RequestParam("typeString") String typeString, 
-                                              @RequestParam("username") String username) {
-        List<MultipartFile> attachmentFiles = new ArrayList<>();
+    public MultipartFile getAttachment(@RequestParam("projectCode") String projectCode,
+                                       @RequestParam("typeString") String typeString,
+                                       @RequestParam("username") String username,
+                                       @RequestParam("fileName") String fileName) {
+        MultipartFile attachmentFile = null;
 
         try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
+            String filePath = null;
+
             if (typeString.equals("Attachment_Member")) {
                 String memberAttachmentSQL = "SELECT file_path FROM Attachment_Members WHERE project_code = ? AND username = ?";
                 try (PreparedStatement memberAttachmentStmt = connection.prepareStatement(memberAttachmentSQL)) {
@@ -386,11 +389,13 @@ public class Controller {
                     memberAttachmentStmt.setString(2, username);
                     ResultSet memberAttachmentRs = memberAttachmentStmt.executeQuery();
                     while (memberAttachmentRs.next()) {
-                        String filePath = memberAttachmentRs.getString("file_path");
-                        File file = new File(filePath);
-                        if (file.exists()) {
-                            MultipartFile multipartFile = convertFileToMultipartFile(file);
-                            attachmentFiles.add(multipartFile);
+                        filePath = memberAttachmentRs.getString("file_path");
+                        if (new File(filePath).getName().equals(fileName)) {
+                            File file = new File(filePath);
+                            if (file.exists()) {
+                                attachmentFile = convertFileToMultipartFile(file);
+                            }
+                            break;
                         }
                     }
                 }
@@ -400,23 +405,27 @@ public class Controller {
                     submitStmt.setString(1, projectCode);
                     ResultSet submitRs = submitStmt.executeQuery();
                     while (submitRs.next()) {
-                        String filePath = submitRs.getString("file_path");
-                        File file = new File(filePath);
-                        if (file.exists()) {
-                            MultipartFile multipartFile = convertFileToMultipartFile(file);
-                            attachmentFiles.add(multipartFile);
+                        filePath = submitRs.getString("file_path");
+                        if (new File(filePath).getName().equals(fileName)) {
+                            File file = new File(filePath);
+                            if (file.exists()) {
+                                attachmentFile = convertFileToMultipartFile(file);
+                            }
+                            break;
                         }
                     }
                 }
             } else {
                 throw new IllegalArgumentException("Invalid typeString: " + typeString);
             }
+
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        return attachmentFiles;
+        return attachmentFile;
     }
+
 
     private MultipartFile convertFileToMultipartFile(File file) throws IOException {
         byte[] content = Files.readAllBytes(file.toPath());
@@ -424,20 +433,28 @@ public class Controller {
     }
 
     @GetMapping("/getAttachmentProject")
-    public List<MultipartFile> getAttachmentProject(@RequestParam("projectCode") String projectCode) {
-        List<MultipartFile> attachmentFiles = new ArrayList<>();
+    public MultipartFile getAttachmentProject(
+            @RequestParam("projectCode") String projectCode,
+            @RequestParam("fileName") String fileName) {
+
+        MultipartFile attachmentFile = null;
 
         try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
             String projectSQL = "SELECT file_name FROM Attachment WHERE project_code = ?";
             try (PreparedStatement projectStmt = connection.prepareStatement(projectSQL)) {
                 projectStmt.setString(1, projectCode);
                 ResultSet projectRs = projectStmt.executeQuery();
+
                 while (projectRs.next()) {
                     String filePath = projectRs.getString("file_name");
                     File file = new File(filePath);
                     if (file.exists()) {
-                        MultipartFile multipartFile = convertFileToMultipartFile(file);
-                        attachmentFiles.add(multipartFile);
+                        String actualFileName = file.getName();
+
+                        if (actualFileName.equals(fileName)) {
+                            attachmentFile = convertFileToMultipartFile(file);
+                            break;
+                        }
                     }
                 }
             }
@@ -445,7 +462,7 @@ public class Controller {
             e.printStackTrace();
         }
 
-        return attachmentFiles;
+        return attachmentFile;
     }
 
     @GetMapping("/saveWorkSubmit")
