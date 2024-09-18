@@ -393,12 +393,12 @@ public class Controller {
     }
 
 
-@GetMapping("/getAttachments")
-    public MultipartFile getAttachment(@RequestParam("projectCode") String projectCode,
-                                       @RequestParam("typeString") String typeString,
-                                       @RequestParam("username") String username,
-                                       @RequestParam("fileName") String fileName) {
-        MultipartFile attachmentFile = null;
+@GetMapping("/getAttachment")
+    public ResponseEntity<byte[]> getAttachment(@RequestParam("projectCode") String projectCode,
+                                @RequestParam("typeString") String typeString,
+                                @RequestParam("username") String username,
+                                @RequestParam("fileName") String fileName) {
+        byte[] attachmentData = null;
 
         try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
             String filePath = null;
@@ -414,7 +414,7 @@ public class Controller {
                         if (new File(filePath).getName().equals(fileName)) {
                             File file = new File(filePath);
                             if (file.exists()) {
-                                attachmentFile = convertFileToMultipartFile(file);
+                                attachmentData = Files.readAllBytes(file.toPath());
                             }
                             break;
                         }
@@ -430,7 +430,7 @@ public class Controller {
                         if (new File(filePath).getName().equals(fileName)) {
                             File file = new File(filePath);
                             if (file.exists()) {
-                                attachmentFile = convertFileToMultipartFile(file);
+                                attachmentData = Files.readAllBytes(file.toPath());
                             }
                             break;
                         }
@@ -444,21 +444,12 @@ public class Controller {
             e.printStackTrace();
         }
 
-        return attachmentFile;
-    }
-
-
-    private MultipartFile convertFileToMultipartFile(File file) throws IOException {
-        byte[] content = Files.readAllBytes(file.toPath());
-        return new MockMultipartFile(file.getName(), file.getName(), Files.probeContentType(file.toPath()), content);
+        return ResponseEntity.ok().body(attachmentData);
     }
 
     @GetMapping("/getAttachmentProject")
-    public MultipartFile getAttachmentProject(
-            @RequestParam("projectCode") String projectCode,
-            @RequestParam("fileName") String fileName) {
-
-        MultipartFile attachmentFile = null;
+    public ResponseEntity<byte[]> getAttachmentProject(@RequestParam("projectCode") String projectCode, @RequestParam("fileName") String fileName) {
+        byte[] attachmentData = null;
 
         try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
             String projectSQL = "SELECT file_name FROM Attachment WHERE project_code = ?";
@@ -473,7 +464,7 @@ public class Controller {
                         String actualFileName = file.getName();
 
                         if (actualFileName.equals(fileName)) {
-                            attachmentFile = convertFileToMultipartFile(file);
+                            attachmentData = Files.readAllBytes(file.toPath());
                             break;
                         }
                     }
@@ -483,7 +474,7 @@ public class Controller {
             e.printStackTrace();
         }
 
-        return attachmentFile;
+        return ResponseEntity.ok().body(attachmentData);
     }
 
     @PostMapping("/saveWorkSubmit")
