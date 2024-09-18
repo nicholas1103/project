@@ -28,7 +28,23 @@ public class Controller {
 
     public int getNextProjectId(String prefix) {
         int nextId = 1;
-        String sql = "SELECT MAX(CAST(SUBSTRING_INDEX(project_code, '-', -1) AS UNSIGNED)) FROM " + prefix;
+        String sql = "";
+        if (prefix.equals("Project")){
+            sql = "SELECT MAX(CAST(SUBSTRING_INDEX(project_code, '-', -1) AS UNSIGNED)) FROM " + prefix;
+        } else if (prefix.equals("Work")){
+            sql = "SELECT MAX(CAST(SUBSTRING_INDEX(work_code, '-', -1) AS UNSIGNED)) FROM " + prefix;
+        } else if (prefix.equals("Attachment")) {
+            sql = "SELECT MAX(CAST(SUBSTRING_INDEX(attachment_code, '-', -1) AS UNSIGNED)) FROM " + prefix;
+        } else if (prefix.equals("Result")) {
+            sql = "SELECT MAX(CAST(SUBSTRING_INDEX(result_code, '-', -1) AS UNSIGNED)) FROM " + prefix;
+        } else if (prefix.equals("Response")) {
+            sql = "SELECT MAX(CAST(SUBSTRING_INDEX(response_code, '-', -1) AS UNSIGNED)) FROM " + prefix;
+        } else if (prefix.equals("Attachment_Members")) {
+            sql = "SELECT MAX(CAST(SUBSTRING_INDEX(attachmentMembers_Code, '-', -1) AS UNSIGNED)) FROM " + prefix;
+        } else if (prefix.equals("WorkSubmit")) {
+            sql = "SELECT MAX(CAST(SUBSTRING_INDEX(worksubmitcode, '-', -1) AS UNSIGNED)) FROM " + prefix;
+        }
+
 
         try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
              PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -46,6 +62,7 @@ public class Controller {
 
         return nextId;
     }
+    
     @GetMapping("/login")
     public ResponseEntity<String> getUserDetails(@RequestParam("userName") String username,
                                                  @RequestParam("passWord") String password) {
