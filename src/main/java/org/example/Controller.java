@@ -486,8 +486,10 @@ public class Controller {
         return attachmentFile;
     }
 
-    @GetMapping("/saveWorkSubmit")
-    public void saveWorkSubmit(String projectCode, String username, List<MultipartFile> files) {
+    @PostMapping("/saveWorkSubmit")
+    public void saveWorkSubmit(@RequestPart("projectCode") String projectCode,
+                               @RequestPart("userName") String username,
+                               @RequestPart("files") List<MultipartFile> files) {
         String workSubmitPath = File_Path.file_path + projectCode + "/Attachment_Submit/" + username + "/";
 
         File directory = new File(workSubmitPath);

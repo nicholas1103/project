@@ -1,3 +1,27 @@
+POST http://localhost:8080/addResponse?projectCode=Project-0001&receiver=phongnt&sender=phongnt&response=Hello may cung&timestamp=9/18/2025 1:48 PM
+User-Agent: IntelliJ HTTP Client/IntelliJ IDEA 2024.1.3
+Accept-Encoding: br, deflate, gzip, x-gzip
+Accept: */*
+content-length: 0
+
+###
+
+POST http://localhost:8080/addResponse?projectCode=Project-0001&receiver=phongnt&sender=phongnt&response=Hello may cung&timestamp=9/18/2025 1:48 PM
+User-Agent: IntelliJ HTTP Client/IntelliJ IDEA 2024.1.3
+Accept-Encoding: br, deflate, gzip, x-gzip
+Accept: */*
+content-length: 0
+
+###
+
+POST http://localhost:8080/addResponse?projectCode=Project-0001&receiver=phongnt&sender=phongnt&response=Hello may cung&timestamp=9/18/2025 1:48 PM
+User-Agent: IntelliJ HTTP Client/IntelliJ IDEA 2024.1.3
+Accept-Encoding: br, deflate, gzip, x-gzip
+Accept: */*
+content-length: 0
+
+###
+
 GET http://localhost:8080/getResponseData?projectCode=Project-0001&userName=phongnt
 User-Agent: IntelliJ HTTP Client/IntelliJ IDEA 2024.1.3
 Accept-Encoding: br, deflate, gzip, x-gzip
