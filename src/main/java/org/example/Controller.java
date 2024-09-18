@@ -714,47 +714,48 @@ public class Controller {
     public ResponseEntity<String> deleteProject(@RequestParam("projectCode") String projectCode) {
         String responseMessage = "Project and related data deleted successfully";
 
+        String deleteAttachmentMembersSQL = "DELETE FROM Attachment_Members WHERE project_code = ?";
+        String deleteAttachmentSQL = "DELETE FROM Attachment WHERE project_code = ?";
+        String deleteResponseSQL = "DELETE FROM Response WHERE work_code IN (SELECT work_code FROM Work WHERE project_code = ?)";
+        String deleteResultSQL = "DELETE FROM Result WHERE work_code IN (SELECT work_code FROM Work WHERE project_code = ?)";
+        String deleteSubmitSQL = "DELETE FROM WorkSubmit WHERE project_code = ?";
+        String deleteWorkSQL = "DELETE FROM Work WHERE project_code = ?";
+        String deleteProjectSQL = "DELETE FROM Project WHERE project_code = ?";
+
         try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
             connection.setAutoCommit(false);
 
             try {
-                String deleteAttachmentMembersSQL = "DELETE FROM Attachment_Members WHERE project_code = ?";
                 try (PreparedStatement stmt = connection.prepareStatement(deleteAttachmentMembersSQL)) {
                     stmt.setString(1, projectCode);
                     stmt.executeUpdate();
                 }
 
-                String deleteAttachmentSQL = "DELETE FROM Attachment WHERE project_code = ?";
                 try (PreparedStatement stmt = connection.prepareStatement(deleteAttachmentSQL)) {
                     stmt.setString(1, projectCode);
                     stmt.executeUpdate();
                 }
 
-                String deleteResponseSQL = "DELETE FROM Response WHERE work_code IN (SELECT work_code FROM Work WHERE project_code = ?)";
                 try (PreparedStatement stmt = connection.prepareStatement(deleteResponseSQL)) {
                     stmt.setString(1, projectCode);
                     stmt.executeUpdate();
                 }
 
-                String deleteResultSQL = "DELETE FROM Result WHERE work_code IN (SELECT work_code FROM Work WHERE project_code = ?)";
                 try (PreparedStatement stmt = connection.prepareStatement(deleteResultSQL)) {
                     stmt.setString(1, projectCode);
                     stmt.executeUpdate();
                 }
 
-                String deleteSubmitSQL = "DELETE FROM WorkSubmit WHERE project_code = ?";
                 try (PreparedStatement stmt = connection.prepareStatement(deleteSubmitSQL)) {
                     stmt.setString(1, projectCode);
                     stmt.executeUpdate();
                 }
 
-                String deleteWorkSQL = "DELETE FROM Work WHERE project_code = ?";
                 try (PreparedStatement stmt = connection.prepareStatement(deleteWorkSQL)) {
                     stmt.setString(1, projectCode);
                     stmt.executeUpdate();
                 }
 
-                String deleteProjectSQL = "DELETE FROM Project WHERE project_code = ?";
                 try (PreparedStatement stmt = connection.prepareStatement(deleteProjectSQL)) {
                     stmt.setString(1, projectCode);
                     stmt.executeUpdate();
@@ -775,4 +776,61 @@ public class Controller {
         return ResponseEntity.ok(responseMessage);
     }
 
+    @PostMapping("/deleteUser")
+    public ResponseEntity<String> deleteUserFromProject(@RequestParam("projectCode") String projectCode, @RequestParam("username") String username) {
+        String deleteWorkSQL = "DELETE FROM Work WHERE project_code = ? AND username = ?";
+        String deleteAttachmentMembersSQL = "DELETE FROM Attachment_Members WHERE project_code = ? AND username = ?";
+        String deleteResponseSQL = "DELETE FROM Response WHERE work_code IN (SELECT work_code FROM Work WHERE project_code = ? AND username = ?)";
+
+        Connection connection = null;
+
+        try {
+            connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
+
+            connection.setAutoCommit(false);
+
+            try (PreparedStatement workStmt = connection.prepareStatement(deleteWorkSQL)) {
+                workStmt.setString(1, projectCode);
+                workStmt.setString(2, username);
+                int workRows = workStmt.executeUpdate();
+                System.out.println("Deleted " + workRows + " rows from Work.");
+            }
+
+            try (PreparedStatement attachmentMembersStmt = connection.prepareStatement(deleteAttachmentMembersSQL)) {
+                attachmentMembersStmt.setString(1, projectCode);
+                attachmentMembersStmt.setString(2, username);
+                int attachmentMemberRows = attachmentMembersStmt.executeUpdate();
+                System.out.println("Deleted " + attachmentMemberRows + " rows from Attachment_Members.");
+            }
+
+            try (PreparedStatement responseStmt = connection.prepareStatement(deleteResponseSQL)) {
+                responseStmt.setString(1, projectCode);
+                responseStmt.setString(2, username);
+                int responseRows = responseStmt.executeUpdate();
+                System.out.println("Deleted " + responseRows + " rows from Response.");
+            }
+
+            connection.commit();
+            return ResponseEntity.ok("All related data for user '" + username + "' in project '" + projectCode + "' has been deleted.");
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            try {
+                if (connection != null) {
+                    connection.rollback();
+                }
+            } catch (SQLException rollbackEx) {
+                rollbackEx.printStackTrace();
+            }
+            return ResponseEntity.status(500).body("An error occurred while trying to delete the user's data from the project.");
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException closeEx) {
+                    closeEx.printStackTrace();
+                }
+            }
+        }
+    }
 }
