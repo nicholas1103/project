@@ -1,6 +1,9 @@
 package org.example;
 
 import com.google.gson.*;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.bind.annotation.*;
@@ -12,7 +15,9 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 @RestController
@@ -393,63 +398,65 @@ public class Controller {
     }
 
 
-@GetMapping("/getAttachment")
+    @GetMapping("/getAttachment")
     public ResponseEntity<byte[]> getAttachment(@RequestParam("projectCode") String projectCode,
-                                @RequestParam("typeString") String typeString,
-                                @RequestParam("username") String username,
-                                @RequestParam("fileName") String fileName) {
+                                                @RequestParam("typeString") String typeString,
+                                                @RequestParam("username") String username,
+                                                @RequestParam("fileName") String fileName) {
         byte[] attachmentData = null;
+        String contentType = "application/octet-stream"; // Mặc định
+        String filePath = null;
 
         try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
-            String filePath = null;
+            // Xác định truy vấn SQL dựa trên typeString
+            String sql = "SELECT file_path FROM " +
+                    (typeString.equals("Attachment_Member") ? "Attachment_Members" : "WorkSubmit") +
+                    " WHERE project_code = ?" +
+                    (typeString.equals("Attachment_Member") ? " AND username = ?" : "");
 
-            if (typeString.equals("Attachment_Member")) {
-                String memberAttachmentSQL = "SELECT file_path FROM Attachment_Members WHERE project_code = ? AND username = ?";
-                try (PreparedStatement memberAttachmentStmt = connection.prepareStatement(memberAttachmentSQL)) {
-                    memberAttachmentStmt.setString(1, projectCode);
-                    memberAttachmentStmt.setString(2, username);
-                    ResultSet memberAttachmentRs = memberAttachmentStmt.executeQuery();
-                    while (memberAttachmentRs.next()) {
-                        filePath = memberAttachmentRs.getString("file_path");
-                        if (new File(filePath).getName().equals(fileName)) {
-                            File file = new File(filePath);
-                            if (file.exists()) {
-                                attachmentData = Files.readAllBytes(file.toPath());
-                            }
-                            break;
+            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+                stmt.setString(1, projectCode);
+                if (typeString.equals("Attachment_Member")) {
+                    stmt.setString(2, username);
+                }
+
+                ResultSet rs = stmt.executeQuery();
+                while (rs.next()) {
+                    filePath = rs.getString("file_path");
+                    if (new File(filePath).getName().equals(fileName)) {
+                        File file = new File(filePath);
+                        if (file.exists()) {
+                            attachmentData = Files.readAllBytes(file.toPath());
+                            contentType = determineContentType(fileName); // Xác định Content-Type
                         }
+                        break;
                     }
                 }
-            } else if (typeString.equals("Attachment_Submit")) {
-                String submitSQL = "SELECT file_path FROM WorkSubmit WHERE project_code = ?";
-                try (PreparedStatement submitStmt = connection.prepareStatement(submitSQL)) {
-                    submitStmt.setString(1, projectCode);
-                    ResultSet submitRs = submitStmt.executeQuery();
-                    while (submitRs.next()) {
-                        filePath = submitRs.getString("file_path");
-                        if (new File(filePath).getName().equals(fileName)) {
-                            File file = new File(filePath);
-                            if (file.exists()) {
-                                attachmentData = Files.readAllBytes(file.toPath());
-                            }
-                            break;
-                        }
-                    }
-                }
-            } else {
-                throw new IllegalArgumentException("Invalid typeString: " + typeString);
             }
-
         } catch (Exception e) {
             e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
 
-        return ResponseEntity.ok().body(attachmentData);
+        if (attachmentData == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"");
+        headers.add(HttpHeaders.CONTENT_TYPE, contentType);
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(attachmentData);
     }
 
+
     @GetMapping("/getAttachmentProject")
-    public ResponseEntity<byte[]> getAttachmentProject(@RequestParam("projectCode") String projectCode, @RequestParam("fileName") String fileName) {
+    public ResponseEntity<ByteArrayResource> getAttachmentProject(@RequestParam("projectCode") String projectCode,
+                                                                  @RequestParam("fileName") String fileName) {
         byte[] attachmentData = null;
+        String contentType = "application/octet-stream"; // Mặc định
 
         try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
             String projectSQL = "SELECT file_name FROM Attachment WHERE project_code = ?";
@@ -465,6 +472,7 @@ public class Controller {
 
                         if (actualFileName.equals(fileName)) {
                             attachmentData = Files.readAllBytes(file.toPath());
+                            contentType = determineContentType(actualFileName); // Xác định Content-Type
                             break;
                         }
                     }
@@ -472,9 +480,48 @@ public class Controller {
             }
         } catch (Exception e) {
             e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
 
-        return ResponseEntity.ok().body(attachmentData);
+        if (attachmentData == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"");
+        headers.add(HttpHeaders.CONTENT_TYPE, contentType);
+        System.out.println(headers);
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(new ByteArrayResource(attachmentData));
+    }
+
+    // Phương thức xác định Content-Type dựa trên phần mở rộng tệp
+    private String determineContentType(String fileName) {
+        Map<String, String> mimeTypes = new HashMap<>();
+        mimeTypes.put("pdf", "application/pdf");
+        mimeTypes.put("jpg", "image/jpeg");
+        mimeTypes.put("jpeg", "image/jpeg");
+        mimeTypes.put("png", "image/png");
+        mimeTypes.put("gif", "image/gif");
+        mimeTypes.put("zip", "application/zip");
+        mimeTypes.put("txt", "text/plain");
+        mimeTypes.put("csv", "text/csv");
+        mimeTypes.put("doc", "application/msword");
+        mimeTypes.put("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        mimeTypes.put("ppt", "application/vnd.ms-powerpoint");
+        mimeTypes.put("pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+        mimeTypes.put("xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+
+        String extension = getFileExtension(fileName).toLowerCase();
+        return mimeTypes.getOrDefault(extension, "application/octet-stream"); // Mặc định
+    }
+
+    // Phương thức để lấy phần mở rộng tệp
+    private String getFileExtension(String fileName) {
+        int lastIndexOfDot = fileName.lastIndexOf('.');
+        return (lastIndexOfDot == -1) ? "" : fileName.substring(lastIndexOfDot + 1);
     }
 
     @PostMapping("/saveWorkSubmit")
