@@ -434,19 +434,18 @@ public class Controller {
     }
 
     @GetMapping("/getProjectDetails")
-    public String getProjectDetails(@RequestParam("projectCode") String projectCode,
-                                    @RequestParam("userName") String username) {
+    public ResponseEntity<String> getProjectDetails(@RequestParam("projectCode") String projectCode,
+                                                    @RequestParam("userName") String username) {
         JsonObject result = new JsonObject();
-
         String projectName = "";
         String requirement = "";
         String deadline = "";
         boolean isManager = false;
         JsonArray attachmentsArray = new JsonArray();
         JsonArray membersArray = new JsonArray();
+        JsonArray workSubmitArray = new JsonArray();
 
         try (Connection connection = DriverManager.getConnection(Connect_SQL.jdbcURL, Connect_SQL.USERNAME, Connect_SQL.PASSWORD)) {
-
             String checkManagerSQL = "SELECT role FROM Work WHERE project_code = ? AND username = ?";
             try (PreparedStatement checkManagerStmt = connection.prepareStatement(checkManagerSQL)) {
                 checkManagerStmt.setString(1, projectCode);
@@ -478,7 +477,7 @@ public class Controller {
                     attachmentsArray.add(fileName);
                 }
             }
-
+            
             String memberSQL = "SELECT username, role, work, status, deadline FROM Work WHERE project_code = ?";
             try (PreparedStatement memberStmt = connection.prepareStatement(memberSQL)) {
                 memberStmt.setString(1, projectCode);
@@ -491,7 +490,7 @@ public class Controller {
                     memberObj.addProperty("work", rs.getString("work"));
                     memberObj.addProperty("work_status", rs.getString("status"));
                     memberObj.addProperty("deadline", rs.getString("deadline"));
-
+                    
                     JsonArray memberAttachmentsArray = new JsonArray();
                     String memberAttachmentSQL = "SELECT file_path FROM Attachment_Members WHERE project_code = ? AND username = ?";
                     try (PreparedStatement memberAttachmentStmt = connection.prepareStatement(memberAttachmentSQL)) {
@@ -506,27 +505,41 @@ public class Controller {
                     }
                     memberObj.add("work_attachments", memberAttachmentsArray);
 
-                    JsonArray workSubmitArray = new JsonArray();
-                    memberObj.add("work_submit", workSubmitArray);
-
                     membersArray.add(memberObj);
                 }
             }
+            
+            String workSubmitSQL = "SELECT username, file_path FROM WorkSubmit WHERE project_code = ?";
+            try (PreparedStatement workSubmitStmt = connection.prepareStatement(workSubmitSQL)) {
+                workSubmitStmt.setString(1, projectCode);
+                ResultSet rs = workSubmitStmt.executeQuery();
+                while (rs.next()) {
+                    JsonObject workSubmitObj = new JsonObject();
+                    String submitUsername = rs.getString("username");
+                    String filePath = rs.getString("file_path");
+                    String fileName = new File(filePath).getName();
 
+                    workSubmitObj.addProperty("username", submitUsername);
+                    workSubmitObj.addProperty("file_name", fileName);
+
+                    workSubmitArray.add(workSubmitObj);
+                }
+            }
+            
             result.addProperty("manager_status", isManager ? "true" : "false");
             result.addProperty("project_name", projectName);
             result.addProperty("requirement", requirement);
             result.add("attachments", attachmentsArray);
             result.addProperty("deadline", deadline);
             result.add("members", membersArray);
+            result.add("worksubmit", workSubmitArray);
 
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(e.getMessage()).toString();
+            return ResponseEntity.status(500).body(e.getMessage());
         }
 
-        return result.toString();
+        return ResponseEntity.ok().body(result.toString());
     }
-
 
     @GetMapping("/getAttachment")
     public ResponseEntity<byte[]> getAttachment(@RequestParam("projectCode") String projectCode,
