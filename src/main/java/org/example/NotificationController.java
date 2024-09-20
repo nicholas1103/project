@@ -19,4 +19,9 @@ public class NotificationController {
     public void sendNotification(@RequestBody NotificationMessage message) {
         messagingTemplate.convertAndSend("/topic/notifications", message);
     }
+
+    @PostMapping("/projectnotification")
+    public void sendProjectNotification(@RequestBody NotificationMessage message) {
+        messagingTemplate.convertAndSend("/topic/projectnotifications", message);
+    }
 }
