@@ -140,8 +140,8 @@ public class Controller {
 
     @PostMapping("/createProject")
     public ResponseEntity<String> createProject(
-            @RequestBody String jsonData,
-            @RequestParam(value = "files", required = false) List<MultipartFile> files) {
+            @RequestPart("jsonData") String jsonData,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files) {
 
         try {
             JsonObject jsonObject = JsonParser.parseString(jsonData).getAsJsonObject();
@@ -211,8 +211,8 @@ public class Controller {
 
     @PostMapping("/addMember")
     public ResponseEntity<String> addMember(
-            @RequestBody String jsonData,
-            @RequestParam(value = "files", required = false) List<MultipartFile> files) {
+            @RequestPart("jsonData") String jsonData,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files) {
 
         try {
             JsonObject jsonObject = JsonParser.parseString(jsonData).getAsJsonObject();
