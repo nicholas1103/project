@@ -211,7 +211,7 @@ public class Controller {
 
     @PostMapping("/addMember")
     public ResponseEntity<String> addMember(
-            @RequestParam String jsonData,
+            @RequestBody String jsonData,
             @RequestParam(value = "files", required = false) List<MultipartFile> files) {
 
         try {
