@@ -143,8 +143,8 @@ public class Controller {
             @RequestPart("project_name") String projectName,
             @RequestPart("requirement") String requirement,
             @RequestPart("deadline") String deadline,
-            @RequestParam("creator") String creatorUsername,
-            @RequestParam(value = "files", required = false) List<MultipartFile> files) {
+            @RequestPart("creator") String creatorUsername,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files) {
         
         String projectCode = generateProjectCode("Project");
         
@@ -192,7 +192,7 @@ public class Controller {
                 attachmentStmt.executeUpdate();
             }
 
-            return ResponseEntity.ok().body("The project has been created successfully.");
+            return ResponseEntity.ok().body(projectCode);
 
         } catch (SQLException | IOException e) {
             return ResponseEntity.status(500).body(e.getMessage());
@@ -206,8 +206,8 @@ public class Controller {
             @RequestPart("work") String work,
             @RequestPart("deadline") String deadline,
             @RequestPart("status") String status,
-            @RequestParam(value = "files", required = false) List<MultipartFile> files,
-            @RequestParam("project_code") String projectCode) {
+            @RequestPart(value = "files", required = false) List<MultipartFile> files,
+            @RequestPart("project_code") String projectCode) {
 
         String workCode = generateProjectCode("Work");
         String insertWorkSQL = "INSERT INTO Work (work_code, project_code, username, role, work, deadline, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
