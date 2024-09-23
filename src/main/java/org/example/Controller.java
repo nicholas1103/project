@@ -262,14 +262,14 @@ public class Controller {
             @RequestPart("project_name") String projectName,
             @RequestPart("requirement") String requirement,
             @RequestPart("deadline") String deadline,
-            @RequestParam("creator") String creatorUsername,
-            @RequestParam(value = "files", required = false) List<MultipartFile> files) {
+            @RequestPart("creator") String creatorUsername,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files) {
 
         String projectCode = generateProjectCode("Project");
 
-        if (checkProjectExists(projectName)) {
-            return ResponseEntity.status(400).body("The project already exists.");
-        }
+//        if (checkProjectExists(projectName)) {
+//            return ResponseEntity.status(400).body("The project already exists.");
+//        }
 
         String insertProjectSQL = "INSERT INTO Project (project_code, project_name, requirement, deadline) VALUES (?, ?, ?, ?)";
         String insertAttachmentSQL = "INSERT INTO Attachment (attachment_code, project_code, file_name) VALUES (?, ?, ?)";
@@ -344,8 +344,8 @@ public class Controller {
             @RequestPart("work") String work,
             @RequestPart("deadline") String deadline,
             @RequestPart("status") String status,
-            @RequestParam(value = "files", required = false) List<MultipartFile> files,
-            @RequestParam("project_code") String projectCode) {
+            @RequestPart(value = "files", required = false) List<MultipartFile> files,
+            @RequestPart("project_code") String projectCode) {
 
         String workCode = generateProjectCode("Work");
         String insertWorkSQL = "INSERT INTO Work (work_code, project_code, username, role, work, deadline, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
@@ -443,7 +443,6 @@ public class Controller {
         boolean isManager = false;
         JsonArray attachmentsArray = new JsonArray();
         JsonArray membersArray = new JsonArray();
-        JsonArray workSubmitArray = new JsonArray();
 
         try (Connection connection = DriverManager.getConnection(Connect_SQL.jdbcURL, Connect_SQL.USERNAME, Connect_SQL.PASSWORD)) {
             String checkManagerSQL = "SELECT role FROM Work WHERE project_code = ? AND username = ?";
@@ -477,7 +476,7 @@ public class Controller {
                     attachmentsArray.add(fileName);
                 }
             }
-            
+
             String memberSQL = "SELECT username, role, work, status, deadline FROM Work WHERE project_code = ?";
             try (PreparedStatement memberStmt = connection.prepareStatement(memberSQL)) {
                 memberStmt.setString(1, projectCode);
@@ -490,7 +489,7 @@ public class Controller {
                     memberObj.addProperty("work", rs.getString("work"));
                     memberObj.addProperty("work_status", rs.getString("status"));
                     memberObj.addProperty("deadline", rs.getString("deadline"));
-                    
+
                     JsonArray memberAttachmentsArray = new JsonArray();
                     String memberAttachmentSQL = "SELECT file_path FROM Attachment_Members WHERE project_code = ? AND username = ?";
                     try (PreparedStatement memberAttachmentStmt = connection.prepareStatement(memberAttachmentSQL)) {
@@ -505,34 +504,34 @@ public class Controller {
                     }
                     memberObj.add("work_attachments", memberAttachmentsArray);
 
+                    // Lấy thông tin work submit cho thành viên này
+                    JsonArray workSubmitArray = new JsonArray();
+                    String workSubmitSQL = "SELECT file_path FROM WorkSubmit WHERE project_code = ? AND username = ?";
+                    try (PreparedStatement workSubmitStmt = connection.prepareStatement(workSubmitSQL)) {
+                        workSubmitStmt.setString(1, projectCode);
+                        workSubmitStmt.setString(2, memberUsername);
+                        ResultSet workSubmitRs = workSubmitStmt.executeQuery();
+                        while (workSubmitRs.next()) {
+                            JsonObject workSubmitObj = new JsonObject();
+                            String filePath = workSubmitRs.getString("file_path");
+                            String fileName = new File(filePath).getName();
+
+                            workSubmitObj.addProperty("file_name", fileName);
+                            workSubmitArray.add(workSubmitObj);
+                        }
+                    }
+                    memberObj.add("work_submit", workSubmitArray); // Thêm work submit vào member
+
                     membersArray.add(memberObj);
                 }
             }
-            
-            String workSubmitSQL = "SELECT username, file_path FROM WorkSubmit WHERE project_code = ?";
-            try (PreparedStatement workSubmitStmt = connection.prepareStatement(workSubmitSQL)) {
-                workSubmitStmt.setString(1, projectCode);
-                ResultSet rs = workSubmitStmt.executeQuery();
-                while (rs.next()) {
-                    JsonObject workSubmitObj = new JsonObject();
-                    String submitUsername = rs.getString("username");
-                    String filePath = rs.getString("file_path");
-                    String fileName = new File(filePath).getName();
 
-                    workSubmitObj.addProperty("username", submitUsername);
-                    workSubmitObj.addProperty("file_name", fileName);
-
-                    workSubmitArray.add(workSubmitObj);
-                }
-            }
-            
             result.addProperty("manager_status", isManager ? "true" : "false");
             result.addProperty("project_name", projectName);
             result.addProperty("requirement", requirement);
             result.add("attachments", attachmentsArray);
             result.addProperty("deadline", deadline);
             result.add("members", membersArray);
-            result.add("worksubmit", workSubmitArray);
 
         } catch (Exception e) {
             return ResponseEntity.status(500).body(e.getMessage());
