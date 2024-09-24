@@ -271,7 +271,6 @@ public class Controller {
     }
 
     private void saveFileContent(String fullFilePath, MultipartFile file) throws IOException {
-        // Ghi nội dung tệp vào đường dẫn chỉ định
         try (FileOutputStream fos = new FileOutputStream(fullFilePath)) {
             fos.write(file.getBytes());
         }
@@ -630,23 +629,6 @@ public class Controller {
         }
         return content.toString();
     }
-
-//    public static List<MultipartFile> convertJsonToMultipartFilesSubmit(JsonObject jsonObject) {
-//        List<MultipartFile> multipartFiles = new ArrayList<>();
-//
-//        for (String key : jsonObject.keySet()) {
-//            JsonElement valueElement = jsonObject.get(key);
-//            String fileName = key;
-//            String fileContent = valueElement.getAsString();
-//
-//            MultipartFile multipartFile = new MockMultipartFile(fileName, fileName, "text/plain", fileContent.getBytes(StandardCharsets.UTF_8));
-//
-//            multipartFiles.add(multipartFile);
-//        }
-//
-//        return multipartFiles;
-//    }
-
 
     // --------------------------------------------- Ham dung de tra ve attachment submit
 
