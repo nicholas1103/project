@@ -313,7 +313,6 @@ public class Controller {
         boolean isManager = false;
         JsonArray attachmentsArray = new JsonArray();
         JsonArray membersArray = new JsonArray();
-        JsonArray workSubmitArray = new JsonArray();
 
         try (Connection connection = DriverManager.getConnection(Connect_SQL.jdbcURL, Connect_SQL.USERNAME, Connect_SQL.PASSWORD)) {
             String checkManagerSQL = "SELECT role FROM Work WHERE project_code = ? AND username = ?";
@@ -325,7 +324,7 @@ public class Controller {
                     isManager = true;
                 }
             }
-
+            
             String projectSQL = "SELECT project_name, requirement, deadline FROM Project WHERE project_code = ?";
             try (PreparedStatement projectStmt = connection.prepareStatement(projectSQL)) {
                 projectStmt.setString(1, projectCode);
@@ -336,7 +335,7 @@ public class Controller {
                     deadline = rs.getString("deadline");
                 }
             }
-
+            
             String attachmentSQL = "SELECT file_name FROM Attachment WHERE project_code = ?";
             try (PreparedStatement attachmentStmt = connection.prepareStatement(attachmentSQL)) {
                 attachmentStmt.setString(1, projectCode);
@@ -355,11 +354,10 @@ public class Controller {
                 while (rs.next()) {
                     JsonObject memberObj = new JsonObject();
                     String memberUsername = rs.getString("username");
+                    
                     memberObj.addProperty("name", memberUsername);
                     memberObj.addProperty("role", rs.getString("role"));
                     memberObj.addProperty("work", rs.getString("work"));
-                    memberObj.addProperty("work_status", rs.getString("status"));
-                    memberObj.addProperty("deadline", rs.getString("deadline"));
                     
                     JsonArray memberAttachmentsArray = new JsonArray();
                     String memberAttachmentSQL = "SELECT file_path FROM Attachment_Members WHERE project_code = ? AND username = ?";
@@ -374,25 +372,27 @@ public class Controller {
                         }
                     }
                     memberObj.add("work_attachments", memberAttachmentsArray);
+                    
+                    JsonArray workSubmitArray = new JsonArray();
+                    String workSubmitSQL = "SELECT file_path, submit_time FROM WorkSubmit WHERE project_code = ? AND username = ?";
+                    try (PreparedStatement workSubmitStmt = connection.prepareStatement(workSubmitSQL)) {
+                        workSubmitStmt.setString(1, projectCode);
+                        workSubmitStmt.setString(2, memberUsername);
+                        ResultSet submitRs = workSubmitStmt.executeQuery();
+                        while (submitRs.next()) {
+                            JsonObject submitObj = new JsonObject();
+                            String filePath = submitRs.getString("file_path");
+                            String fileName = new File(filePath).getName();
+                            submitObj.addProperty("file_name", fileName);
+                            submitObj.addProperty("submit_time", submitRs.getString("submit_time"));
+                            workSubmitArray.add(submitObj);
+                        }
+                    }
+                    memberObj.add("work_submit", workSubmitArray);
+                    memberObj.addProperty("work_status", rs.getString("status")); 
+                    memberObj.addProperty("deadline", rs.getString("deadline"));
 
                     membersArray.add(memberObj);
-                }
-            }
-            
-            String workSubmitSQL = "SELECT username, file_path FROM WorkSubmit WHERE project_code = ?";
-            try (PreparedStatement workSubmitStmt = connection.prepareStatement(workSubmitSQL)) {
-                workSubmitStmt.setString(1, projectCode);
-                ResultSet rs = workSubmitStmt.executeQuery();
-                while (rs.next()) {
-                    JsonObject workSubmitObj = new JsonObject();
-                    String submitUsername = rs.getString("username");
-                    String filePath = rs.getString("file_path");
-                    String fileName = new File(filePath).getName();
-
-                    workSubmitObj.addProperty("username", submitUsername);
-                    workSubmitObj.addProperty("file_name", fileName);
-
-                    workSubmitArray.add(workSubmitObj);
                 }
             }
             
@@ -402,7 +402,6 @@ public class Controller {
             result.add("attachments", attachmentsArray);
             result.addProperty("deadline", deadline);
             result.add("members", membersArray);
-            result.add("worksubmit", workSubmitArray);
 
         } catch (Exception e) {
             return ResponseEntity.status(500).body(e.getMessage());
@@ -538,9 +537,11 @@ public class Controller {
     }
 
     @PostMapping("/saveWorkSubmit")
-    public void saveWorkSubmit(@RequestPart("projectCode") String projectCode,
-                               @RequestPart("userName") String username,
-                               @RequestPart("files") List<MultipartFile> files) {
+    public boolean saveWorkSubmit(@RequestPart("projectCode") String projectCode,
+                                  @RequestPart("username") String username, 
+                                  @RequestPart("files") List<MultipartFile> files,
+                                  @RequestPart("submitTime") String submitTime) {
+        boolean isUpdated = false;
         String workSubmitPath = File_Path.file_path + projectCode + "/Attachment_Submit/" + username + "/";
 
         File directory = new File(workSubmitPath);
@@ -549,8 +550,8 @@ public class Controller {
         }
 
         try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
-            String sql = "INSERT INTO WorkSubmit (worksubmitcode, project_code, username, file_path) VALUES (?, ?, ?, ?)";
-            PreparedStatement pstmt = connection.prepareStatement(sql);
+            String insertSQL = "INSERT INTO WorkSubmit (worksubmitcode, project_code, username, file_path, submit_time) VALUES (?, ?, ?, ?, ?)";
+            PreparedStatement pstmt = connection.prepareStatement(insertSQL);
 
             for (MultipartFile file : files) {
                 String fileName = file.getOriginalFilename();
@@ -564,12 +565,30 @@ public class Controller {
                 pstmt.setString(2, projectCode);
                 pstmt.setString(3, username);
                 pstmt.setString(4, filePath);
+                pstmt.setString(5, submitTime);
 
-                pstmt.executeUpdate();
+                int rowsAffected = pstmt.executeUpdate();
+
+                if (rowsAffected > 0) {
+                    isUpdated = true;
+                }
             }
+
+            if (isUpdated) {
+                String updateSQL = "UPDATE Work SET status = 'finished' WHERE project_code = ? AND username = ?";
+                try (PreparedStatement updateStmt = connection.prepareStatement(updateSQL)) {
+                    updateStmt.setString(1, projectCode);
+                    updateStmt.setString(2, username);
+
+                    updateStmt.executeUpdate();
+                }
+            }
+
         } catch (SQLException | IOException e) {
             e.printStackTrace();
         }
+
+        return isUpdated;
     }
 
     // --------------------------------------------- Ham dung de luu cac attachment submit cua cac thanh vien
