@@ -894,4 +894,345 @@ public class Controller {
             }
         }
     }
+
+    
+    @PostMapping("/updateWorkField")
+    public ResponseEntity<String> updateWorkField(@RequestBody String jsonInput) {
+        JsonObject jsonObject = JsonParser.parseString(jsonInput).getAsJsonObject();
+
+        String projectCode = jsonObject.get("project_code").getAsString();
+        String username = jsonObject.get("username").getAsString();
+        String typeString = jsonObject.get("typeString").getAsString();
+        String newChange = jsonObject.get("newChange").getAsString();
+
+        String sql = "";
+        switch (typeString.toLowerCase()) {
+            case "role":
+                sql = "UPDATE Work SET role = ? WHERE project_code = ? AND username = ?";
+                break;
+            case "work":
+                sql = "UPDATE Work SET work = ? WHERE project_code = ? AND username = ?";
+                break;
+            case "deadline":
+                sql = "UPDATE Work SET deadline = ? WHERE project_code = ? AND username = ?";
+                break;
+            default:
+                return ResponseEntity.status(500).body("Invalid typeString. Valid options are: role, work, deadline.");
+        }
+
+        try (Connection connection = DriverManager.getConnection(Connect_SQL.jdbcURL, Connect_SQL.USERNAME, Connect_SQL.PASSWORD);
+             PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+
+            preparedStatement.setString(1, newChange);
+            preparedStatement.setString(2, projectCode);
+            preparedStatement.setString(3, username);
+
+            int rowsAffected = preparedStatement.executeUpdate();
+            if (rowsAffected > 0) {
+                return ResponseEntity.ok().body("Update successful.");
+            } else {
+                return ResponseEntity.status(500).body("No records updated. Check if the project_code and username exist.");
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/deleteAttachment")
+    public ResponseEntity<String> deleteAttachment(@RequestPart("projectCode") String projectCode,
+                                                   @RequestPart("fileName") String fileName) {
+        String selectSQL = "SELECT attachment_code, file_name FROM Attachment WHERE project_code = ?";
+        String deleteSQL = "DELETE FROM Attachment WHERE attachment_code = ?";
+
+        boolean status = false;
+
+        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
+             PreparedStatement selectStmt = connection.prepareStatement(selectSQL)) {
+
+            selectStmt.setString(1, projectCode);
+            ResultSet resultSet = selectStmt.executeQuery();
+
+            while (resultSet.next()) {
+                String attachmentCode = resultSet.getString("attachment_code");
+                String fullFilePath = resultSet.getString("file_name");
+
+                String extractedFileName = fullFilePath.substring(fullFilePath.lastIndexOf("/") + 1);
+
+                if (extractedFileName.equals(fileName)) {
+                    try (PreparedStatement deleteStmt = connection.prepareStatement(deleteSQL)) {
+                        deleteStmt.setString(1, attachmentCode);
+                        deleteStmt.executeUpdate();
+                        System.out.println("Attachment " + fileName + " has been deleted from the database successfully.");
+                        status = true;
+                    }
+
+                    File fileToDelete = new File(fullFilePath);
+                    if (fileToDelete.exists()) {
+                        if (fileToDelete.delete()) {
+                            System.out.println("File " + fullFilePath + " has been deleted successfully from the system.");
+                        } else {
+                            System.out.println("Failed to delete the file " + fullFilePath);
+                        }
+                    } else {
+                        System.out.println("File " + fullFilePath + " does not exist.");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        if (status){
+            return ResponseEntity.ok().body("Attachment " + fileName + " has been deleted from the database successfully.");
+        } else {
+            return ResponseEntity.status(404).body("File does not exist.");
+        }
+    }
+
+    @PostMapping("/deleteAttachmentMember")
+    public ResponseEntity<String> deleteAttachmentMember(@RequestPart("projectCode") String projectCode,
+                                       @RequestPart("username") String username,
+                                       @RequestPart("fileName") String fileName) {
+        String selectSQL = "SELECT attachmentMembers_Code, file_path FROM Attachment_Members WHERE project_code = ? AND username = ?";
+        String deleteSQL = "DELETE FROM Attachment_Members WHERE attachmentMembers_Code = ?";
+
+        boolean status = false;
+
+        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
+             PreparedStatement selectStmt = connection.prepareStatement(selectSQL)) {
+
+            selectStmt.setString(1, projectCode);
+            selectStmt.setString(2, username);
+            ResultSet resultSet = selectStmt.executeQuery();
+
+            while (resultSet.next()) {
+                String attachmentMembersCode = resultSet.getString("attachmentMembers_Code");
+                String fullFilePath = resultSet.getString("file_path");
+
+                String extractedFileName = fullFilePath.substring(fullFilePath.lastIndexOf("/") + 1);
+
+                if (extractedFileName.equals(fileName)) {
+                    try (PreparedStatement deleteStmt = connection.prepareStatement(deleteSQL)) {
+                        deleteStmt.setString(1, attachmentMembersCode);
+                        deleteStmt.executeUpdate();
+                        System.out.println("Attachment for member " + fileName + " has been deleted from the database successfully.");
+                        status = true;
+                    }
+
+                    File fileToDelete = new File(fullFilePath);
+                    if (fileToDelete.exists()) {
+                        if (fileToDelete.delete()) {
+                            System.out.println("File " + fullFilePath + " has been deleted successfully from the system.");
+                        } else {
+                            System.out.println("Failed to delete the file " + fullFilePath);
+                        }
+                    } else {
+                        System.out.println("File " + fullFilePath + " does not exist.");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        if (status){
+            return ResponseEntity.ok().body("Attachment for member " + fileName + " has been deleted from the database successfully.");
+        } else {
+            return ResponseEntity.status(404).body("File does not exist.");
+        }
+    }
+
+    @PostMapping("/deleteWorkSubmit")
+    public ResponseEntity<String> deleteWorkSubmit(@RequestPart("/projectCode") String projectCode,
+                                 @RequestPart("username") String username,
+                                 @RequestPart("fileName") String fileName) {
+        String selectSQL = "SELECT worksubmitcode, file_path FROM WorkSubmit WHERE project_code = ? AND username = ?";
+        String deleteSQL = "DELETE FROM WorkSubmit WHERE worksubmitcode = ?";
+
+        boolean status = false;
+
+        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
+             PreparedStatement selectStmt = connection.prepareStatement(selectSQL)) {
+
+            selectStmt.setString(1, projectCode);
+            selectStmt.setString(2, username);
+            ResultSet resultSet = selectStmt.executeQuery();
+
+            while (resultSet.next()) {
+                String worksubmitCode = resultSet.getString("worksubmitcode");
+                String fullFilePath = resultSet.getString("file_path");
+
+                String extractedFileName = fullFilePath.substring(fullFilePath.lastIndexOf("/") + 1);
+
+                if (extractedFileName.equals(fileName)) {
+                    try (PreparedStatement deleteStmt = connection.prepareStatement(deleteSQL)) {
+                        deleteStmt.setString(1, worksubmitCode);
+                        deleteStmt.executeUpdate();
+                        System.out.println("WorkSubmit file " + fileName + " has been deleted from the database successfully.");
+                        status = true;
+                    }
+
+                    File fileToDelete = new File(fullFilePath);
+                    if (fileToDelete.exists()) {
+                        if (fileToDelete.delete()) {
+                            System.out.println("File " + fullFilePath + " has been deleted successfully from the system.");
+                        } else {
+                            System.out.println("Failed to delete the file " + fullFilePath);
+                        }
+                    } else {
+                        System.out.println("File " + fullFilePath + " does not exist.");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        if (status){
+            return ResponseEntity.ok().body("WorkSubmit file " + fileName + " has been deleted from the database successfully.");
+        } else {
+            return ResponseEntity.status(404).body("File does not exist.");
+        }
+    }
+
+
+    @PostMapping("/addAttachment")
+    public ResponseEntity<String> addAttachment(@RequestPart("projectCode") String projectCode,
+                                                @RequestPart("file") MultipartFile file) {
+        String insertSQL = "INSERT INTO Attachment (attachment_code, project_code, file_name) VALUES (?, ?, ?)";
+        String filePath = File_Path.file_path + projectCode + "/Attachment_Project/" + file.getOriginalFilename();
+
+        boolean status = false;
+
+        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
+             PreparedStatement insertStmt = connection.prepareStatement(insertSQL)) {
+
+            String attachmentCode = generateProjectCode("Attachment");
+
+            insertStmt.setString(1, attachmentCode);
+            insertStmt.setString(2, projectCode);
+            insertStmt.setString(3, filePath);
+            insertStmt.executeUpdate();
+
+            status = true;
+
+            File targetFile = new File(filePath);
+            if (!targetFile.getParentFile().exists()) {
+                boolean dirsCreated = targetFile.getParentFile().mkdirs();
+                if (dirsCreated) {
+                    System.out.println("Directories created: " + targetFile.getParent());
+                } else {
+                    System.out.println("Failed to create directories: " + targetFile.getParent());
+                }
+            }
+
+            try (FileOutputStream fos = new FileOutputStream(targetFile)) {
+                fos.write(file.getBytes());
+            }
+
+        } catch (SQLException | IOException e) {
+            e.printStackTrace();
+        }
+
+        if (status){
+            return ResponseEntity.ok("Save data successfully.");
+        } else {
+            return ResponseEntity.status(500).body("Save data failed.");
+        }
+    }
+
+    @PostMapping("/addAttachmentMember")
+    public ResponseEntity<String> addAttachmentMember(@RequestPart("projectCode") String projectCode,
+                                    @RequestPart("username") String username,
+                                    @RequestPart("file") MultipartFile file) {
+        String insertSQL = "INSERT INTO Attachment_Members (attachmentMembers_Code, project_code, username, file_path) VALUES (?, ?, ?, ?)";
+        String filePath = File_Path.file_path + projectCode + "/Attachment_Member/" + username + "/" + file.getOriginalFilename();
+
+        boolean status = false;
+
+        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
+             PreparedStatement insertStmt = connection.prepareStatement(insertSQL)) {
+
+            String attachmentMembersCode = generateProjectCode("Attachment_Members");
+
+            insertStmt.setString(1, attachmentMembersCode);
+            insertStmt.setString(2, projectCode);
+            insertStmt.setString(3, username);
+            insertStmt.setString(4, filePath);
+            insertStmt.executeUpdate();
+
+            status = true;
+
+            File targetFile = new File(filePath);
+            if (!targetFile.getParentFile().exists()) {
+                boolean dirsCreated = targetFile.getParentFile().mkdirs();
+                if (dirsCreated) {
+                    System.out.println("Directories created: " + targetFile.getParent());
+                } else {
+                    System.out.println("Failed to create directories: " + targetFile.getParent());
+                }
+            }
+
+            try (FileOutputStream fos = new FileOutputStream(targetFile)) {
+                fos.write(file.getBytes());
+            }
+
+        } catch (SQLException | IOException e) {
+            e.printStackTrace();
+        }
+
+        if (status){
+            return ResponseEntity.ok().body("Save data successfully.");
+        } else {
+            return ResponseEntity.status(500).body("Save data failed.");
+        }
+    }
+
+    @PostMapping("/addWorkSubmit")
+    public ResponseEntity<String> addWorkSubmit(@RequestPart("projectCode") String projectCode,
+                              @RequestPart("username") String username,
+                              @RequestPart("file") MultipartFile file) {
+        String insertSQL = "INSERT INTO WorkSubmit (worksubmitcode, project_code, username, file_path) VALUES (?, ?, ?, ?)";
+        String filePath = File_Path.file_path + projectCode + "/Attachment_Submit/" + username + "/" + file.getOriginalFilename();
+
+        boolean status = false;
+
+        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
+             PreparedStatement insertStmt = connection.prepareStatement(insertSQL)) {
+
+            String worksubmitCode = generateProjectCode("WorkSubmit");
+
+            insertStmt.setString(1, worksubmitCode);
+            insertStmt.setString(2, projectCode);
+            insertStmt.setString(3, username);
+            insertStmt.setString(4, filePath);
+            insertStmt.executeUpdate();
+
+            status = true;
+
+            File targetFile = new File(filePath);
+            if (!targetFile.getParentFile().exists()) {
+                boolean dirsCreated = targetFile.getParentFile().mkdirs();
+                if (dirsCreated) {
+                    System.out.println("Directories created: " + targetFile.getParent());
+                } else {
+                    System.out.println("Failed to create directories: " + targetFile.getParent());
+                }
+            }
+
+            try (FileOutputStream fos = new FileOutputStream(targetFile)) {
+                fos.write(file.getBytes());
+            }
+
+        } catch (SQLException | IOException e) {
+            e.printStackTrace();
+        }
+
+        if (status){
+            return ResponseEntity.ok().body("Save data successfully.");
+        } else {
+            return ResponseEntity.status(500).body("Save data failed.");
+        }
+    }
+
 }
