@@ -1190,9 +1190,10 @@ public class Controller {
 
     @PostMapping("/addWorkSubmit")
     public ResponseEntity<String> addWorkSubmit(@RequestPart("projectCode") String projectCode,
-                              @RequestPart("username") String username,
-                              @RequestPart("file") MultipartFile file) {
-        String insertSQL = "INSERT INTO WorkSubmit (worksubmitcode, project_code, username, file_path) VALUES (?, ?, ?, ?)";
+                                                @RequestPart("username") String username,
+                                                @RequestPart("file") MultipartFile file,
+                                                @RequestPart("submitTime") String submitTime) {
+        String insertSQL = "INSERT INTO WorkSubmit (worksubmitcode, project_code, username, file_path, submit_time) VALUES (?, ?, ?, ?, ?)";
         String filePath = File_Path.file_path + projectCode + "/Attachment_Submit/" + username + "/" + file.getOriginalFilename();
 
         boolean status = false;
@@ -1206,6 +1207,7 @@ public class Controller {
             insertStmt.setString(2, projectCode);
             insertStmt.setString(3, username);
             insertStmt.setString(4, filePath);
+            insertStmt.setString(5, submitTime);  // Thêm submitTime từ tham số đầu vào
             insertStmt.executeUpdate();
 
             status = true;
@@ -1228,11 +1230,10 @@ public class Controller {
             e.printStackTrace();
         }
 
-        if (status){
+        if (status) {
             return ResponseEntity.ok().body("Save data successfully.");
         } else {
             return ResponseEntity.status(500).body("Save data failed.");
         }
     }
-
 }
