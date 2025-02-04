@@ -1,23 +1,14 @@
 package org.example;
 
 import com.google.gson.*;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 
 @RestController
@@ -66,7 +57,8 @@ public class Controller {
 
         return nextId;
     }
-    
+
+    // --------------------------------------------- Ham tren la dung de random cac code PK o cac cot 1 cua cac bang
     @GetMapping("/login")
     public ResponseEntity<String> getUserDetails(@RequestParam("userName") String username,
                                                  @RequestParam("passWord") String password) {
@@ -97,6 +89,8 @@ public class Controller {
         return ResponseEntity.ok(jsonResponse.toString());
     }
 
+    // --------------------------------------------- Ham dung de tra ve username va fullname (DASHBOARD)
+
     @GetMapping("/getInformationProject")
 
     public ResponseEntity<String> getProjectDetailsByUsername(@RequestParam("userName") String username) {
@@ -126,9 +120,9 @@ public class Controller {
                 projectsArray.add(project);
             }
 
-            if (!dataFound)
+            if (!dataFound) {
                 return ResponseEntity.status(404).body("No projects found for the given username");
-
+            }
 
         } catch (Exception e) {
             return ResponseEntity.status(500).body("An error occurred: " + e.getMessage());
@@ -137,6 +131,9 @@ public class Controller {
         responseJson.add("projects", projectsArray);
         return ResponseEntity.ok(responseJson.toString());
     }
+
+    // --------------------------------------------- Ham tra tra ve thong cac project ma username do co lien quan (DASHBOARD)
+
 
     @PostMapping("/createProject")
     public ResponseEntity<String> createProject(
@@ -190,7 +187,7 @@ public class Controller {
                         String fileName = file.getOriginalFilename();
                         String fullFilePath = projectFolder.getPath() + "/" + fileName;
                         saveFileContent(fullFilePath, file);
-                        
+
                         String attachmentCode = generateProjectCode("Attachment");
                         attachmentStmt.setString(1, attachmentCode);
                         attachmentStmt.setString(2, projectCode);
@@ -223,6 +220,20 @@ public class Controller {
             String deadline = jsonObject.get("deadline").getAsString();
             String projectCode = jsonObject.get("project_code").getAsString();
 
+            String checkUserExistsSQL = "SELECT COUNT(*) FROM Work WHERE project_code = ? AND username = ?";
+            try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
+                 PreparedStatement checkUserStmt = connection.prepareStatement(checkUserExistsSQL)) {
+
+                checkUserStmt.setString(1, projectCode);
+                checkUserStmt.setString(2, username);
+                ResultSet rs = checkUserStmt.executeQuery();
+                if (rs.next() && rs.getInt(1) > 0) {
+                    return ResponseEntity.status(400).body("Username already exists for this project");
+                }
+            } catch (Exception e){
+                return ResponseEntity.status(500).body(e.getMessage());
+            }
+
             String workCode = generateProjectCode("Work");
             String insertWorkSQL = "INSERT INTO Work (work_code, project_code, username, role, work, deadline, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
             String insertAttachmentMemberSQL = "INSERT INTO Attachment_Members (attachmentMembers_Code, project_code, username, file_path) VALUES (?, ?, ?, ?)";
@@ -239,7 +250,7 @@ public class Controller {
                 workStmt.setString(6, deadline);
                 workStmt.setString(7, "unfinished");
                 workStmt.executeUpdate();
-                
+
                 File memberBaseFolder = new File(File_Path.file_path + projectCode + "/Attachment_Member/" + username);
                 if (!memberBaseFolder.exists()) {
                     memberBaseFolder.mkdirs();
@@ -270,11 +281,15 @@ public class Controller {
         }
     }
 
+
     private void saveFileContent(String fullFilePath, MultipartFile file) throws IOException {
         try (FileOutputStream fos = new FileOutputStream(fullFilePath)) {
             fos.write(file.getBytes());
         }
     }
+
+
+    // --------------------------------------------- Ham de dung de them project moi (DASHBOARD)
 
     @PostMapping("/updateProjectName")
     public boolean updateProjectName(@RequestParam("projectCode") String projectCode,
@@ -302,6 +317,59 @@ public class Controller {
         return isUpdated;
     }
 
+    // --------------------------------------------- Ham dung de update project name (Project's Information for Manager)
+
+    @PostMapping("/updateProjectRequirement")
+    public ResponseEntity<String> updateProjectRequirement(@RequestParam("projectCode") String projectCode, @RequestParam("newRequirement") String newRequirement) {
+        String updateSQL = "UPDATE Project SET requirement = ? WHERE project_code = ?";
+
+        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
+             PreparedStatement pstmt = connection.prepareStatement(updateSQL)) {
+
+            pstmt.setString(1, newRequirement);
+            pstmt.setString(2, projectCode);
+
+            int rowsAffected = pstmt.executeUpdate();
+            if (rowsAffected > 0) {
+                System.out.println("Project requirement updated successfully.");
+                return ResponseEntity.ok().body("Project requirement updated successfully.");
+            } else {
+                System.out.println("No project found with the provided project_code.");
+                return ResponseEntity.status(404).body("No project found with the provided project_code.");
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return ResponseEntity.status(404).body("The project request to be updated failed.");
+    }
+
+    //-------------------------------------------- Ham dung de update requirement cua Project
+
+    @GetMapping("/updateProjectDeadline")
+    public ResponseEntity<String> updateProjectDeadline(@RequestParam("projectCode") String projectCode, @RequestParam("newDeadline") String newDeadline) {
+        String updateSQL = "UPDATE Project SET deadline = ? WHERE project_code = ?";
+
+        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
+             PreparedStatement pstmt = connection.prepareStatement(updateSQL)) {
+
+            pstmt.setString(1, newDeadline);
+            pstmt.setString(2, projectCode);
+
+            int rowsAffected = pstmt.executeUpdate();
+            if (rowsAffected > 0) {
+                return ResponseEntity.ok().body("Project deadline updated successfully.");
+            } else {
+                return ResponseEntity.status(404).body("No project found with the provided project_code.");
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return ResponseEntity.status(404).body("The project request to be updated failed.");
+    }
+
+    //------------------------------------------------ Ham dung de update deadline cua Project
     @GetMapping("/getProjectDetails")
     public ResponseEntity<String> getProjectDetails(@RequestParam("projectCode") String projectCode,
                                                     @RequestParam("userName") String username) {
@@ -319,11 +387,15 @@ public class Controller {
                 checkManagerStmt.setString(1, projectCode);
                 checkManagerStmt.setString(2, username);
                 ResultSet rs = checkManagerStmt.executeQuery();
-                if (rs.next() && "Manager".equals(rs.getString("role"))) {
-                    isManager = true;
+
+                if (rs.next()) {
+                    String role = rs.getString("role");
+                    if (role != null && role.toLowerCase().contains("manager")) {
+                        isManager = true;
+                    }
                 }
             }
-            
+
             String projectSQL = "SELECT project_name, requirement, deadline FROM Project WHERE project_code = ?";
             try (PreparedStatement projectStmt = connection.prepareStatement(projectSQL)) {
                 projectStmt.setString(1, projectCode);
@@ -334,7 +406,7 @@ public class Controller {
                     deadline = rs.getString("deadline");
                 }
             }
-            
+
             String attachmentSQL = "SELECT file_name FROM Attachment WHERE project_code = ?";
             try (PreparedStatement attachmentStmt = connection.prepareStatement(attachmentSQL)) {
                 attachmentStmt.setString(1, projectCode);
@@ -345,7 +417,7 @@ public class Controller {
                     attachmentsArray.add(fileName);
                 }
             }
-            
+
             String memberSQL = "SELECT username, role, work, status, deadline FROM Work WHERE project_code = ?";
             try (PreparedStatement memberStmt = connection.prepareStatement(memberSQL)) {
                 memberStmt.setString(1, projectCode);
@@ -353,11 +425,11 @@ public class Controller {
                 while (rs.next()) {
                     JsonObject memberObj = new JsonObject();
                     String memberUsername = rs.getString("username");
-                    
+
                     memberObj.addProperty("name", memberUsername);
                     memberObj.addProperty("role", rs.getString("role"));
                     memberObj.addProperty("work", rs.getString("work"));
-                    
+
                     JsonArray memberAttachmentsArray = new JsonArray();
                     String memberAttachmentSQL = "SELECT file_path FROM Attachment_Members WHERE project_code = ? AND username = ?";
                     try (PreparedStatement memberAttachmentStmt = connection.prepareStatement(memberAttachmentSQL)) {
@@ -371,7 +443,7 @@ public class Controller {
                         }
                     }
                     memberObj.add("work_attachments", memberAttachmentsArray);
-                    
+
                     JsonArray workSubmitArray = new JsonArray();
                     String workSubmitSQL = "SELECT file_path, submit_time FROM WorkSubmit WHERE project_code = ? AND username = ?";
                     try (PreparedStatement workSubmitStmt = connection.prepareStatement(workSubmitSQL)) {
@@ -388,13 +460,13 @@ public class Controller {
                         }
                     }
                     memberObj.add("work_submit", workSubmitArray);
-                    memberObj.addProperty("work_status", rs.getString("status")); 
+                    memberObj.addProperty("work_status", rs.getString("status"));
                     memberObj.addProperty("deadline", rs.getString("deadline"));
 
                     membersArray.add(memberObj);
                 }
             }
-            
+
             result.addProperty("manager_status", isManager ? "true" : "false");
             result.addProperty("project_name", projectName);
             result.addProperty("requirement", requirement);
@@ -409,65 +481,68 @@ public class Controller {
         return ResponseEntity.ok().body(result.toString());
     }
 
+
+
+// --------------------------------------------- Ham tra ve thong tin cua cu the 1 project nao do (Project's Information for Member)
+
     @GetMapping("/getAttachment")
     public ResponseEntity<byte[]> getAttachment(@RequestParam("projectCode") String projectCode,
-                                                @RequestParam("typeString") String typeString,
-                                                @RequestParam("username") String username,
-                                                @RequestParam("fileName") String fileName) {
+                                @RequestParam("typeString") String typeString,
+                                @RequestParam("username") String username,
+                                @RequestParam("fileName") String fileName) {
         byte[] attachmentData = null;
-        String contentType = "application/octet-stream"; // Mặc định
-        String filePath = null;
 
         try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
-            // Xác định truy vấn SQL dựa trên typeString
-            String sql = "SELECT file_path FROM " +
-                    (typeString.equals("Attachment_Member") ? "Attachment_Members" : "WorkSubmit") +
-                    " WHERE project_code = ?" +
-                    (typeString.equals("Attachment_Member") ? " AND username = ?" : "");
+            String filePath = null;
 
-            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-                stmt.setString(1, projectCode);
-                if (typeString.equals("Attachment_Member")) {
-                    stmt.setString(2, username);
-                }
-
-                ResultSet rs = stmt.executeQuery();
-                while (rs.next()) {
-                    filePath = rs.getString("file_path");
-                    if (new File(filePath).getName().equals(fileName)) {
-                        File file = new File(filePath);
-                        if (file.exists()) {
-                            attachmentData = Files.readAllBytes(file.toPath());
-                            contentType = determineContentType(fileName); // Xác định Content-Type
+            if (typeString.equals("Attachment_Member")) {
+                String memberAttachmentSQL = "SELECT file_path FROM Attachment_Members WHERE project_code = ? AND username = ?";
+                try (PreparedStatement memberAttachmentStmt = connection.prepareStatement(memberAttachmentSQL)) {
+                    memberAttachmentStmt.setString(1, projectCode);
+                    memberAttachmentStmt.setString(2, username);
+                    ResultSet memberAttachmentRs = memberAttachmentStmt.executeQuery();
+                    while (memberAttachmentRs.next()) {
+                        filePath = memberAttachmentRs.getString("file_path");
+                        if (new File(filePath).getName().equals(fileName)) {
+                            File file = new File(filePath);
+                            if (file.exists()) {
+                                attachmentData = Files.readAllBytes(file.toPath());
+                            }
+                            break;
                         }
-                        break;
                     }
                 }
+            } else if (typeString.equals("Attachment_Submit")) {
+                String submitSQL = "SELECT file_path FROM WorkSubmit WHERE project_code = ?";
+                try (PreparedStatement submitStmt = connection.prepareStatement(submitSQL)) {
+                    submitStmt.setString(1, projectCode);
+                    ResultSet submitRs = submitStmt.executeQuery();
+                    while (submitRs.next()) {
+                        filePath = submitRs.getString("file_path");
+                        if (new File(filePath).getName().equals(fileName)) {
+                            File file = new File(filePath);
+                            if (file.exists()) {
+                                attachmentData = Files.readAllBytes(file.toPath());
+                            }
+                            break;
+                        }
+                    }
+                }
+            } else {
+                throw new IllegalArgumentException("Invalid typeString: " + typeString);
             }
+
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
 
-        if (attachmentData == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-        }
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"");
-        headers.add(HttpHeaders.CONTENT_TYPE, contentType);
-
-        return ResponseEntity.ok()
-                .headers(headers)
-                .body(attachmentData);
+        return ResponseEntity.ok().body(attachmentData);
     }
 
-
     @GetMapping("/getAttachmentProject")
-    public ResponseEntity<ByteArrayResource> getAttachmentProject(@RequestParam("projectCode") String projectCode,
-                                                                  @RequestParam("fileName") String fileName) {
+    public ResponseEntity<byte[]> getAttachmentProject(@RequestParam("projectCode") String projectCode,
+                                                       @RequestParam("fileName") String fileName) {
         byte[] attachmentData = null;
-        String contentType = "application/octet-stream"; // Mặc định
 
         try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
             String projectSQL = "SELECT file_name FROM Attachment WHERE project_code = ?";
@@ -483,7 +558,6 @@ public class Controller {
 
                         if (actualFileName.equals(fileName)) {
                             attachmentData = Files.readAllBytes(file.toPath());
-                            contentType = determineContentType(actualFileName); // Xác định Content-Type
                             break;
                         }
                     }
@@ -491,53 +565,18 @@ public class Controller {
             }
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
 
-        if (attachmentData == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-        }
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"");
-        headers.add(HttpHeaders.CONTENT_TYPE, contentType);
-        System.out.println(headers);
-
-        return ResponseEntity.ok()
-                .headers(headers)
-                .body(new ByteArrayResource(attachmentData));
+        return ResponseEntity.ok().body(attachmentData);
     }
 
-    // Phương thức xác định Content-Type dựa trên phần mở rộng tệp
-    private String determineContentType(String fileName) {
-        Map<String, String> mimeTypes = new HashMap<>();
-        mimeTypes.put("pdf", "application/pdf");
-        mimeTypes.put("jpg", "image/jpeg");
-        mimeTypes.put("jpeg", "image/jpeg");
-        mimeTypes.put("png", "image/png");
-        mimeTypes.put("gif", "image/gif");
-        mimeTypes.put("zip", "application/zip");
-        mimeTypes.put("txt", "text/plain");
-        mimeTypes.put("csv", "text/csv");
-        mimeTypes.put("doc", "application/msword");
-        mimeTypes.put("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-        mimeTypes.put("ppt", "application/vnd.ms-powerpoint");
-        mimeTypes.put("pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
-        mimeTypes.put("xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 
-        String extension = getFileExtension(fileName).toLowerCase();
-        return mimeTypes.getOrDefault(extension, "application/octet-stream"); // Mặc định
-    }
 
-    // Phương thức để lấy phần mở rộng tệp
-    private String getFileExtension(String fileName) {
-        int lastIndexOfDot = fileName.lastIndexOf('.');
-        return (lastIndexOfDot == -1) ? "" : fileName.substring(lastIndexOfDot + 1);
-    }
+    // --------------------------------------------- Ham tra ve cac attachment cua project va cac attachment cua username
 
     @PostMapping("/saveWorkSubmit")
     public boolean saveWorkSubmit(@RequestPart("projectCode") String projectCode,
-                                  @RequestPart("username") String username, 
+                                  @RequestPart("username") String username,
                                   @RequestPart("files") List<MultipartFile> files,
                                   @RequestPart("submitTime") String submitTime) {
         boolean isUpdated = false;
@@ -590,54 +629,18 @@ public class Controller {
         return isUpdated;
     }
 
+
+
     // --------------------------------------------- Ham dung de luu cac attachment submit cua cac thanh vien
 
-//    @GetMapping("/getWorkSubmitFiles")
-//    public List<MultipartFile> getWorkSubmitFiles(String projectCode, String username) {
-//        JsonObject result = new JsonObject();
-//
-//        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
-//
-//            String sql = "SELECT file_path FROM WorkSubmit WHERE project_code = ? AND username = ?";
-//            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-//                pstmt.setString(1, projectCode);
-//                pstmt.setString(2, username);
-//
-//                ResultSet rs = pstmt.executeQuery();
-//
-//                while (rs.next()) {
-//                    String filePath = rs.getString("file_path");
-//                    String fileName = new File(filePath).getName();
-//                    String fileContent = readFileContent(filePath);
-//                    result.addProperty(fileName, fileContent);
-//                }
-//            }
-//
-//        } catch (SQLException e) {
-//            e.printStackTrace();
-//        }
-//
-//        return convertJsonToMultipartFilesSubmit(result);
-//    }
-
-    private String readFileContent(String filePath) {
-        StringBuilder content = new StringBuilder();
-        try {
-            Files.lines(Paths.get(filePath)).forEach(content::append);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return content.toString();
-    }
-
-    // --------------------------------------------- Ham dung de tra ve attachment submit
-
     @PostMapping("/addResponse")
-    public void addResponse(@RequestParam("projectCode") String projectCode,
+    public ResponseEntity<String> addResponse(@RequestParam("projectCode") String projectCode,
                             @RequestParam("receiver") String receiver,
                             @RequestParam("sender") String sender,
                             @RequestParam("response") String response,
                             @RequestParam("timestamp") String timestamp) {
+        boolean status = false;
+
         try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
 
             String workCode = null;
@@ -664,17 +667,25 @@ public class Controller {
                 preparedStatement.setString(4, response);
                 preparedStatement.setString(5, timestamp);
 
+                status = true;
+
                 preparedStatement.executeUpdate();
             }
         } catch (SQLException e) {
             e.printStackTrace();
+        }
+
+        if (status){
+            return ResponseEntity.ok().body("Add data successful.");
+        } else {
+            return ResponseEntity.status(404).body("Add data failed.");
         }
     }
 
     // ------------------------------------- Ham de add Response cua 1 nguoi ve phan cua 1 nguoi bat ki nao do
 
     @GetMapping("/getResponseData")
-    public String getResponseData(@RequestParam("projectCode") String projectCode, @RequestParam("userName") String username) {
+    public ResponseEntity<String> getResponseData(@RequestParam("projectCode") String projectCode, @RequestParam("userName") String username) {
         JsonObject responseData = new JsonObject();
         Gson gson = new Gson();
         try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD)) {
@@ -714,62 +725,10 @@ public class Controller {
             e.printStackTrace();
         }
 
-        return gson.toJson(responseData);
+        return ResponseEntity.ok().body(gson.toJson(responseData));
     }
 
     // ----------------------------- Ham dung de lay cac reponse cua nguoi khac ve work cua minh
-
-    @PostMapping("/updateProjectRequirement")
-    public ResponseEntity<String> updateProjectRequirement(@RequestParam("projectCode") String projectCode, @RequestParam("newRequirement") String newRequirement) {
-        String updateSQL = "UPDATE Project SET requirement = ? WHERE project_code = ?";
-
-        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
-             PreparedStatement pstmt = connection.prepareStatement(updateSQL)) {
-
-            pstmt.setString(1, newRequirement);
-            pstmt.setString(2, projectCode);
-
-            int rowsAffected = pstmt.executeUpdate();
-            if (rowsAffected > 0) {
-                System.out.println("Project requirement updated successfully.");
-                return ResponseEntity.ok().body("Project requirement updated successfully.");
-            } else {
-                System.out.println("No project found with the provided project_code.");
-                return ResponseEntity.status(404).body("No project found with the provided project_code.");
-            }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return ResponseEntity.status(404).body("The project request to be updated failed.");
-    }
-
-    //-------------------------------------------- Ham dung de update requirement cua Project
-
-    @PostMapping("/updateProjectDeadline")
-    public ResponseEntity<String> updateProjectDeadline(@RequestParam("projectCode") String projectCode, @RequestParam("newDeadline") String newDeadline) {
-        String updateSQL = "UPDATE Project SET deadline = ? WHERE project_code = ?";
-
-        try (Connection connection = DriverManager.getConnection(jdbcURL, USERNAME, PASSWORD);
-             PreparedStatement pstmt = connection.prepareStatement(updateSQL)) {
-
-            pstmt.setString(1, newDeadline);
-            pstmt.setString(2, projectCode);
-
-            int rowsAffected = pstmt.executeUpdate();
-            if (rowsAffected > 0) {
-                return ResponseEntity.ok().body("Project deadline updated successfully.");
-            } else {
-                return ResponseEntity.status(404).body("No project found with the provided project_code.");
-            }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return ResponseEntity.status(404).body("The project request to be updated failed.");
-    }
-
-    //------------------------------------------------ Ham dung de update deadline cua Project
 
     @PostMapping("/deleteProject")
     public ResponseEntity<String> deleteProject(@RequestParam("projectCode") String projectCode) {
@@ -895,7 +854,8 @@ public class Controller {
         }
     }
 
-    
+    //-------------------------------------------------------bat dau tu day---------------------------------
+
     @PostMapping("/updateWorkField")
     public ResponseEntity<String> updateWorkField(@RequestBody String jsonInput) {
         JsonObject jsonObject = JsonParser.parseString(jsonInput).getAsJsonObject();
@@ -1237,3 +1197,5 @@ public class Controller {
         }
     }
 }
+
+
